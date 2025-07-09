@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AdNexus</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/register.css" />
+</head>
+
+
+<!--  -->
+</body>
+<div>
+  <div class="wrapper">
+    <div id="header"></div>
+
+    <main class="form-container">
+      <h2>Register</h2>
+      <div class="form-container">
+        <form id="register-form">
+          <input type="text" id="username" name="username" placeholder="Username" required />
+          <input type="email" id="email" name="email" placeholder="Email" required />
+          <input type="password" id="password" name="password" placeholder="Password" required />
+          <p id="registration-error-message" style="color: red;"></p>
+          <button type="submit">Create Account</button>
+        </form>
+      </div>
+      <p>Already have an account? <a href="login.html">Login here</a></p>
+    </main>
+
+    <div id="footer"></div>
+
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/index.js" defer></script>
+    <script src="https://kit.fontawesome.com/7afbd3200b.js" crossorigin="anonymous"></script>
+  </div>
+  </body>
+
+</html>
