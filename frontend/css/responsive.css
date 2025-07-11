@@ -1,0 +1,28 @@
+/* responsive.css */
+
+/* Для мобильных устройств и планшетов */
+@media (max-width: 768px) {
+  .nav-links {
+    position: absolute;
+    top: 60px;
+    right: 0;
+    background-color: #1a1a1a;
+    flex-direction: column;
+    width: 200px;
+    display: none;
+    padding: 1rem;
+  }
+
+  .nav-links.active { display: flex; }
+  .burger { display: flex; }
+
+  .main-container {
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-container {
+    padding: 0 0.5rem;
+  }
+}
