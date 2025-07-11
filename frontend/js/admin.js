@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 // Функция для подгрузки и отображения списка пользователей
 async function loadUsers() {
   try {
-    const res = await fetch("http://localhost:3000/users", {
+    const res = await fetch("http://localhost:3000/api/users", {
       headers: { Authorization: "Bearer " + localStorage.getItem("token") }
     });
     if (!res.ok) {
@@ -76,7 +76,7 @@ document.querySelector("#users-table tbody").addEventListener("click", async (e)
     }
 
     try {
-      const res = await fetch(`http://localhost:3000/users/${userId}`, {
+      const res = await fetch(`http://localhost:3000/api/users/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -102,7 +102,7 @@ document.querySelector("#users-table tbody").addEventListener("click", async (e)
     if (!confirm("Вы уверены, что хотите удалить пользователя?")) return;
 
     try {
-      const res = await fetch(`http://localhost:3000/users/${userId}`, {
+      const res = await fetch(`http://localhost:3000/api/users/${userId}`, {
         method: "DELETE",
         headers: { Authorization: "Bearer " + localStorage.getItem("token") }
       });
@@ -133,7 +133,7 @@ document.getElementById("create-user-form").addEventListener("submit", async (ev
   const newUser = { username, email, password, is_admin };
 
   try {
-    const res = await fetch("http://localhost:3000/users", {
+    const res = await fetch("http://localhost:3000/api/users", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

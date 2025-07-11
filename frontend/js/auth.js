@@ -2,7 +2,7 @@ export async function checkAuth() {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  const res = await fetch("http://localhost:3000/me", {
+  const res = await fetch("http://localhost:3000/api/me", {
     headers: { Authorization: "Bearer " + token }
   });
   if (!res.ok) return null;
@@ -14,7 +14,7 @@ export async function checkAdmin() {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  const res = await fetch("http://localhost:3000/admin", {
+  const res = await fetch("http://localhost:3000/api/admin", {
     headers: { Authorization: "Bearer " + token }
   });
 
