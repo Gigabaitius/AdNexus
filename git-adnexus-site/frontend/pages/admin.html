@@ -1,0 +1,189 @@
+<!-- admin.html -->
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Админ-панель AdNexus</title>
+  <link rel="stylesheet" href="../css/base.css" />
+  <link rel="stylesheet" href="../css/layout.css" />
+  <link rel="stylesheet" href="../css/responsive.css" />
+  <link rel="stylesheet" href="../css/admin.css" />
+</head>
+<div>
+  <div class="wrapper"></div>
+  <div id="header"></div>
+
+  <!-- Основной контент админ-панели -->
+  <main class="admin-main">
+    <section>
+      <h1>Панель управления пользователями</h1>
+      <!-- Форма создания нового пользователя -->
+      <div class="create-user-container">
+        <h2>Создать нового пользователя</h2>
+        <form id="create-user-form">
+          <input type="text" id="new-username" name="username" placeholder="Имя пользователя" required />
+          <input type="email" id="new-email" name="email" placeholder="Email" required />
+          <input type="password" id="new-password" name="password" placeholder="Пароль" required />
+          <!-- Флажок для определения прав администратора -->
+          <label>
+            <input type="checkbox" id="new-is_admin" name="is_admin" />
+            Администратор
+          </label>
+          <button type="submit">Создать пользователя</button>
+        </form>
+      </div>
+
+      <!-- Таблица списка пользователей -->
+      <div class="users-table-container">
+        <h2>Список пользователей</h2>
+        <table id="users-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Имя пользователя</th>
+              <th>Email</th>
+              <th>Администратор</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Данные будут подгружены через JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <!-- Форма добавления новой кампании -->
+  <section id="add-campaign-section" class="mb-4">
+    <h2>Добавить новую кампанию</h2>
+    <form id="add-campaign-form">
+      <div class="mb-3">
+        <label for="title" class="form-label">Название</label>
+        <input type="text" class="form-control" id="title" required>
+      </div>
+      <div class="mb-3">
+        <label for="description" class="form-label">Описание</label>
+        <textarea class="form-control" id="description"></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="budget" class="form-label">Бюджет</label>
+        <input type="number" class="form-control" id="budget" required>
+      </div>
+      <div class="mb-3">
+        <label for="start_date" class="form-label">Дата начала</label>
+        <input type="date" class="form-control" id="start_date" required>
+      </div>
+      <div class="mb-3">
+        <label for="end_date" class="form-label">Дата окончания</label>
+        <input type="date" class="form-control" id="end_date">
+      </div>
+      <div class="mb-3">
+        <label for="status" class="form-label">Статус</label>
+        <select class="form-select" id="status">
+          <option value="draft">Draft</option>
+          <option value="pending" selected>Pending</option>
+          <option value="active">Active</option>
+          <option value="finished">Finished</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Добавить</button>
+    </form>
+  </section>
+
+  <!-- Форма поиска и фильтров -->
+  <section id="search-section" class="mb-4">
+    <h2>Поиск кампаний</h2>
+    <form id="search-form">
+      <div class="row">
+        <div class="col-md-3 mb-3">
+          <label for="filter-status" class="form-label">Статус</label>
+          <select class="form-select" id="filter-status">
+            <option value="">Все</option>
+            <option value="draft">Draft</option>
+            <option value="pending">Pending</option>
+            <option value="active">Active</option>
+            <option value="finished">Finished</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="filter-budget" class="form-label">Бюджет > </label>
+          <input type="number" class="form-control" id="filter-budget">
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="sort-field" class="form-label">Сортировка по</label>
+          <select class="form-select" id="sort-field">
+            <option value="">Без сортировки</option>
+            <option value="budget">Бюджет</option>
+            <option value="start_date">Дата начала</option>
+          </select>
+        </div>
+        <div class="col-md-3 mb-3">
+          <label for="sort-direction" class="form-label">Направление</label>
+          <select class="form-select" id="sort-direction">
+            <option value="asc">Возрастание</option>
+            <option value="desc">Убывание</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Поиск</button>
+    </form>
+  </section>
+
+  <!-- Таблица кампаний -->
+  <section id="campaigns-table-section">
+    <h2>Список кампаний</h2>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Название</th>
+          <th>Бюджет</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="campaigns-table-body"></tbody>
+    </table>
+    <!-- Пагинация -->
+    <nav aria-label="Пагинация">
+      <ul class="pagination">
+        <li class="page-item"><a class="page-link" href="#" id="prev-page">Предыдущая</a></li>
+        <li class="page-item"><a class="page-link" href="#" id="next-page">Следующая</a></li>
+      </ul>
+    </nav>
+  </section>
+
+  <!-- Модальное окно для редактирования (скрытое по умолчанию) -->
+  <div class="modal fade" id="edit-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Редактировать кампанию</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-campaign-form">
+            <input type="hidden" id="edit-id">
+            <div class="mb-3">
+              <label for="edit-title" class="form-label">Название</label>
+              <input type="text" class="form-control" id="edit-title" required>
+            </div>
+            <!-- Другие поля аналогично форме добавления -->
+            <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  </main>
+
+  <div id="footer"></div>
+
+  <script type="module" src="../js/main.js"></script>
+  <script type="module" src="../js/admin.js" defer></script>
+  <script src="https://kit.fontawesome.com/7afbd3200b.js" crossorigin="anonymous"></script>
+</div>
+</body>
+
+</html>
