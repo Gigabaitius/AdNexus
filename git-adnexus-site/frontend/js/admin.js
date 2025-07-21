@@ -154,3 +154,131 @@ document.getElementById("create-user-form").addEventListener("submit", async (ev
     alert("Ошибка сервера.");
   }
 });
+
+// admin.js (или отдельный файл для админ-панели)
+let currentPage = 1;
+const limit = 10;
+
+// Функция загрузки кампаний с пагинацией и фильтрами
+async function loadCampaigns(page = 1, filters = {}, sort = {}) {
+  const query = new URLSearchParams({
+    page,
+    limit,
+    filter: JSON.stringify(filters),
+    sort: JSON.stringify(sort)
+  }).toString();
+
+  const response = await fetch(`/api/campaigns?${query}`);
+  const campaigns = await response.json();
+
+  const tableBody = document.getElementById('campaigns-table-body');
+  tableBody.innerHTML = '';
+
+  campaigns.forEach(campaign => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td>${campaign.id}</td>
+      <td>${campaign.title}</td>
+      <td>${campaign.budget}</td>
+      <td>${campaign.status}</td>
+      <td>
+        <button class="btn btn-sm btn-warning edit-btn" data-id="${campaign.id}">Изменить</button>
+        <button class="btn btn-sm btn-danger delete-btn" data-id="${campaign.id}">Удалить</button>
+      </td>
+    `;
+    tableBody.appendChild(row);
+  });
+
+  currentPage = page;
+}
+
+// Обработчик формы добавления
+document.getElementById('add-campaign-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = {
+    title: document.getElementById('title').value,
+    description: document.getElementById('description').value,
+    budget: parseFloat(document.getElementById('budget').value),
+    start_date: document.getElementById('start_date').value,
+    end_date: document.getElementById('end_date').value,
+    status: document.getElementById('status').value
+  };
+
+  await fetch('/api/campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  });
+
+  loadCampaigns(currentPage);  // Обновляем таблицу
+});
+
+// Обработчик формы поиска
+document.getElementById('search-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const filters = {};
+  const status = document.getElementById('filter-status').value;
+  const budget = document.getElementById('filter-budget').value;
+  if (status) filters.status = { '=': status };
+  if (budget) filters.budget = { '>': parseFloat(budget) };
+
+  const sort = {};
+  const sortField = document.getElementById('sort-field').value;
+  const sortDirection = document.getElementById('sort-direction').value;
+  if (sortField) sort[sortField] = sortDirection;
+
+  loadCampaigns(1, filters, sort);  // Перезагружаем с новыми фильтрами
+});
+
+// Пагинация
+document.getElementById('prev-page').addEventListener('click', () => {
+  if (currentPage > 1) loadCampaigns(currentPage - 1);
+});
+document.getElementById('next-page').addEventListener('click', () => {
+  loadCampaigns(currentPage + 1);
+});
+
+// Обработчик кнопок "Изменить" (модальное окно)
+document.getElementById('campaigns-table-body').addEventListener('click', async (e) => {
+  if (e.target.classList.contains('edit-btn')) {
+    const id = e.target.dataset.id;
+    // Загрузка данных кампании для редактирования (fetch /api/campaigns/:id)
+    const response = await fetch(`/api/campaigns/${id}`);
+    const campaign = await response.json();
+    document.getElementById('edit-id').value = campaign.id;
+    document.getElementById('edit-title').value = campaign.title;
+    // Заполните другие поля аналогично
+
+    // Показ модального окна (с Bootstrap)
+    new bootstrap.Modal(document.getElementById('edit-modal')).show();
+  }
+
+  if (e.target.classList.contains('delete-btn')) {
+    const id = e.target.dataset.id;
+    if (confirm('Вы уверены, что хотите удалить кампанию?')) {
+      await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
+      loadCampaigns(currentPage);  // Обновляем таблицу
+    }
+  }
+});
+
+// Обработчик формы редактирования
+document.getElementById('edit-campaign-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('edit-id').value;
+  const formData = {
+    title: document.getElementById('edit-title').value,
+    // Другие поля...
+  };
+
+  await fetch(`/api/campaigns/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(formData)
+  });
+
+  loadCampaigns(currentPage);  // Обновляем таблицу
+});
+
+// Начальная загрузка
+loadCampaigns();

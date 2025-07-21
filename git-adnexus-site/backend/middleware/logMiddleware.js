@@ -11,5 +11,6 @@ const accessLogStream = fs.createWriteStream(
   { flags: 'a' }
 );
 
-// Middleware для логирования всех запросов
-app.use(morgan('combined', { stream: accessLogStream }));
+app.use(morgan('combined', { stream: accessLogStream }));  // Подключаем morgan как middleware
+// - 'combined' - формат лога (включает IP, дату, метод, URL, статус, время ответа, user-agent)
+// - { stream: accessLogStream } - указываем, куда писать логи (в файл вместо консоли)

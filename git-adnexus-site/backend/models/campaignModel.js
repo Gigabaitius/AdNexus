@@ -15,15 +15,88 @@ db.run(`
     start_date TEXT NOT NULL,
     end_date TEXT,
     user_id INTEGER NOT NULL,
-    status TEXT DEFAULT 'pending',
+    status TEXT NOT NULL CHECK (status IN ('draft', 'pending', 'active', 'finished')) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
-// Получение всех кампаний
-function getAllCampaigns() {
+// Получение кампаний с пагинацией и фильтрами
+function getAllCampaignsPaginated(options) {
+  const { page = 1, limit = 10, status } = options;  // Деструктуризация с значениями по умолчанию
+  const offset = (page - 1) * limit;  // Расчет смещения
+
   return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM campaigns", (err, campaigns) => {
+    let query = "SELECT * FROM campaigns";
+    let params = [];
+
+    // Фильтр по статусу
+    if (status) {
+      query += " WHERE status = ?";
+      params.push(status);
+    }
+
+    // Пагинация
+    query += " LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+
+    db.all(query, params, (err, campaigns) => {
+      if (err) reject(err);
+      else resolve(campaigns);
+    });
+  });
+}
+
+// Универсальный метод поиска кампаний с фильтрами, сортировкой и пагинацией
+// filters: объект { field: { operator: value } }, например { status: { '=': 'active' }, budget: { '>': 1000 } }
+// sort: объект { field: direction }, например { budget: 'desc' }
+// page: номер страницы (начиная с 1), limit: элементов на странице
+function searchCampaigns(filters = {}, sort = {}, page = 1, limit = 10) {
+  return new Promise((resolve, reject) => {
+    let query = "SELECT * FROM campaigns";
+    let whereClauses = [];
+    let params = [];
+    let offset = (page - 1) * limit;
+
+    // Строим WHERE-часть для фильтров
+    Object.entries(filters).forEach(([field, condition]) => {
+      const [operator, value] = Object.entries(condition)[0];  // Получаем первый (и единственный) оператор-значение
+      switch (operator) {
+        case '=':
+          whereClauses.push(`${field} = ?`);
+          params.push(value);
+          break;
+        case '>':
+        case '<':
+        case '>=':
+        case '<=':
+          whereClauses.push(`${field} ${operator} ?`);
+          params.push(value);
+          break;
+        case 'contains':
+          whereClauses.push(`${field} LIKE ?`);
+          params.push(`%${value}%`);
+          break;
+        default:
+          return reject(new Error(`Неподдерживаемый оператор: ${operator}`));
+      }
+    });
+
+    if (whereClauses.length > 0) {
+      query += " WHERE " + whereClauses.join(" AND ");
+    }
+
+    // Добавляем сортировку
+    if (Object.keys(sort).length > 0) {
+      const [field, direction] = Object.entries(sort)[0];
+      query += ` ORDER BY ${field} ${direction.toUpperCase()}`;
+    }
+
+    // Добавляем пагинацию
+    query += " LIMIT ? OFFSET ?";
+    params.push(limit, offset);
+
+    // Выполняем запрос
+    db.all(query, params, (err, campaigns) => {
       if (err) reject(err);
       else resolve(campaigns);
     });
@@ -93,9 +166,10 @@ function deleteCampaign(id) {
 }
 
 module.exports = {
-  getAllCampaigns,
+  getAllCampaignsPaginated,
   getCampaignsByUserId,
   getCampaignById,
+  searchCampaigns,
   createCampaign,
   updateCampaign,
   deleteCampaign

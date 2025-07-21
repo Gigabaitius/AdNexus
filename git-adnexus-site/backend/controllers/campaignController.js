@@ -1,13 +1,55 @@
 // controllers/campaignController.js
+// Controller (Контроллер) - связывает Model и View, обрабатывает HTTP запросы
+
 const campaignModel = require('../models/campaignModel');
 
-// Получение всех кампаний
+// Получение всех кампаний с пагинацией и фильтрами
 async function getAllCampaigns(req, res) {
   try {
-    const campaigns = await campaignModel.getAllCampaigns();
+    // Извлекаем параметры из req.query
+    const { page, limit, status } = req.query;
+
+    // Опции для модели (с преобразованием в числа, где нужно)
+    const options = {
+      page: parseInt(page) || 1,    // Если не указано, page=1
+      limit: parseInt(limit) || 10, // Если не указано, limit=10
+      status                        // Фильтр по статусу (опционально)
+    };
+
+    // Получаем данные из модели
+    const campaigns = await campaignModel.getAllCampaignsPaginated(options);
+
+    // Отправляем ответ (можно добавить общее количество для фронтенда, но для простоты опустим)
     res.status(200).json(campaigns);
   } catch (err) {
     console.error('Ошибка при получении кампаний:', err);
+    res.status(500).json({ message: 'Ошибка сервера' });
+  }
+}
+
+// Поиск кампаний с фильтрами, сортировкой и пагинацией
+async function searchCampaigns(req, res) {
+  try {
+    // Парсим параметры из req.query
+    const { page, limit, filter, sort } = req.query;
+
+    // Преобразуем filter в объект (ожидаем JSON-строку, например "?filter={\"status\":{\"=\":\"active\"},\"budget\":{\" > \":1000}}")
+    const filters = filter ? JSON.parse(filter) : {};
+
+    // Преобразуем sort в объект (например "?sort={\"budget\":\"desc\"}")
+    const sortObj = sort ? JSON.parse(sort) : {};
+
+    const options = {
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10
+    };
+
+    // Вызываем модель
+    const campaigns = await campaignModel.searchCampaigns(filters, sortObj, options.page, options.limit);
+
+    res.status(200).json(campaigns);
+  } catch (err) {
+    console.error('Ошибка при поиске кампаний:', err);
     res.status(500).json({ message: 'Ошибка сервера' });
   }
 }
@@ -148,6 +190,7 @@ module.exports = {
   getAllCampaigns,
   getUserCampaigns,
   getCampaign,
+  searchCampaigns,
   createCampaign,
   updateCampaign,
   deleteCampaign
