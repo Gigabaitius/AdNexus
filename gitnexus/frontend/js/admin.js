@@ -1,5 +1,5 @@
 // admin.js - Логика админ-панели для управления пользователями и кампаниями
-// Полная реализация с фиксом URL, обработкой ошибок и модальными окнами.
+// Полная реализация с фиксом URL, обработкой ошибок, модальными окнами и проверками на наличие DOM-элементов.
 // Автор: AI Assistant (на основе репозитория https://github.com/Gigabaitius/AdNexus и контекста)
 // Дата: [текущая дата]
 
@@ -46,21 +46,25 @@ async function loadUsers() {
     try {
         const users = await apiFetch('/api/users');
         const tableBody = document.getElementById('usersTableBody');
-        tableBody.innerHTML = '';
-        users.forEach(user => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${user.id}</td>
-                <td>${user.username}</td>
-                <td>${user.email}</td>
-                <td>${user.role}</td>
-                <td>
-                    <button onclick="editUser(${user.id})">Edit</button>
-                    <button onclick="deleteUser(${user.id})">Delete</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
+        if (tableBody) {
+            tableBody.innerHTML = '';
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.role}</td>
+                    <td>
+                        <button onclick="editUser(${user.id})">Edit</button>
+                        <button onclick="deleteUser(${user.id})">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        } else {
+            console.warn('Element not found: usersTableBody. Users loaded but not displayed.');
+        }
     } catch (error) {
         console.error('Error loading users:', error);
         alert('Failed to load users. Check console for details.');
@@ -85,22 +89,26 @@ async function loadCampaigns(page = 1, limit = 10, filter = {}, sort = {}) {
         }).toString();
         const campaigns = await apiFetch(`/api/campaigns?${query}`);
         const tableBody = document.getElementById('campaignsTableBody');
-        tableBody.innerHTML = '';
-        campaigns.forEach(campaign => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${campaign.id}</td>
-                <td>${campaign.title}</td>
-                <td>${campaign.description}</td>
-                <td>${campaign.budget}</td>
-                <td>${campaign.status}</td>
-                <td>
-                    <button onclick="editCampaign(${campaign.id})">Edit</button>
-                    <button onclick="deleteCampaign(${campaign.id})">Delete</button>
-                </td>
-            `;
-            tableBody.appendChild(row);
-        });
+        if (tableBody) {
+            tableBody.innerHTML = '';
+            campaigns.forEach(campaign => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${campaign.id}</td>
+                    <td>${campaign.title}</td>
+                    <td>${campaign.description}</td>
+                    <td>${campaign.budget}</td>
+                    <td>${campaign.status}</td>
+                    <td>
+                        <button onclick="editCampaign(${campaign.id})">Edit</button>
+                        <button onclick="deleteCampaign(${campaign.id})">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        } else {
+            console.warn('Element not found: campaignsTableBody. Campaigns loaded but not displayed.');
+        }
     } catch (error) {
         console.error('Error loading campaigns:', error);
         alert('Failed to load campaigns. Check console for details.');
@@ -142,14 +150,28 @@ async function addCampaign(event) {
 async function editUser(id) {
     try {
         const user = await apiFetch(`/api/users/${id}`);
-        // Заполняем модальную форму (предполагается наличие модалки в HTML)
-        document.getElementById('editUserId').value = user.id;
-        document.getElementById('editUsername').value = user.username;
-        document.getElementById('editEmail').value = user.email;
-        document.getElementById('editRole').value = user.role;
-        
-        // Показываем модалку (используйте CSS или JS для видимости)
-        document.getElementById('editUserModal').style.display = 'block';
+        const modal = document.getElementById('editUserModal');
+        if (modal) {
+            // Заполняем модальную форму (предполагается наличие модалки в HTML)
+            const editUserId = document.getElementById('editUserId');
+            const editUsername = document.getElementById('editUsername');
+            const editEmail = document.getElementById('editEmail');
+            const editRole = document.getElementById('editRole');
+            
+            if (editUserId && editUsername && editEmail && editRole) {
+                editUserId.value = user.id;
+                editUsername.value = user.username;
+                editEmail.value = user.email;
+                editRole.value = user.role;
+                
+                // Показываем модалку
+                modal.style.display = 'block';
+            } else {
+                console.warn('Form fields not found in editUserModal.');
+            }
+        } else {
+            console.warn('Element not found: editUserModal.');
+        }
     } catch (error) {
         console.error('Error loading user for edit:', error);
         alert('Failed to load user data.');
@@ -163,10 +185,20 @@ async function editUser(id) {
  */
 async function saveEditUser(event) {
     event.preventDefault();
-    const id = document.getElementById('editUserId').value;
-    const username = document.getElementById('editUsername').value;
-    const email = document.getElementById('editEmail').value;
-    const role = document.getElementById('editRole').value;
+    const editUserId = document.getElementById('editUserId');
+    const editUsername = document.getElementById('editUsername');
+    const editEmail = document.getElementById('editEmail');
+    const editRole = document.getElementById('editRole');
+    
+    if (!editUserId || !editUsername || !editEmail || !editRole) {
+        console.warn('Edit user form fields not found.');
+        return;
+    }
+    
+    const id = editUserId.value;
+    const username = editUsername.value;
+    const email = editEmail.value;
+    const role = editRole.value;
 
     try {
         await apiFetch(`/api/users/${id}`, {
@@ -174,7 +206,8 @@ async function saveEditUser(event) {
             body: JSON.stringify({ username, email, role })
         });
         alert('User updated successfully');
-        document.getElementById('editUserModal').style.display = 'none';
+        const modal = document.getElementById('editUserModal');
+        if (modal) modal.style.display = 'none';
         loadUsers(); // Перезагрузка списка
     } catch (error) {
         console.error('Error updating user:', error);
@@ -208,15 +241,30 @@ async function deleteUser(id) {
 async function editCampaign(id) {
     try {
         const campaign = await apiFetch(`/api/campaigns/${id}`);
-        // Заполняем модальную форму
-        document.getElementById('editCampaignId').value = campaign.id;
-        document.getElementById('editTitle').value = campaign.title;
-        document.getElementById('editDescription').value = campaign.description;
-        document.getElementById('editBudget').value = campaign.budget;
-        document.getElementById('editStatus').value = campaign.status;
-        
-        // Показываем модалку
-        document.getElementById('editCampaignModal').style.display = 'block';
+        const modal = document.getElementById('editCampaignModal');
+        if (modal) {
+            // Заполняем модальную форму
+            const editCampaignId = document.getElementById('editCampaignId');
+            const editTitle = document.getElementById('editTitle');
+            const editDescription = document.getElementById('editDescription');
+            const editBudget = document.getElementById('editBudget');
+            const editStatus = document.getElementById('editStatus');
+            
+            if (editCampaignId && editTitle && editDescription && editBudget && editStatus) {
+                editCampaignId.value = campaign.id;
+                editTitle.value = campaign.title;
+                editDescription.value = campaign.description;
+                editBudget.value = campaign.budget;
+                editStatus.value = campaign.status;
+                
+                // Показываем модалку
+                modal.style.display = 'block';
+            } else {
+                console.warn('Form fields not found in editCampaignModal.');
+            }
+        } else {
+            console.warn('Element not found: editCampaignModal.');
+        }
     } catch (error) {
         console.error('Error loading campaign for edit:', error);
         alert('Failed to load campaign data.');
@@ -230,11 +278,22 @@ async function editCampaign(id) {
  */
 async function saveEditCampaign(event) {
     event.preventDefault();
-    const id = document.getElementById('editCampaignId').value;
-    const title = document.getElementById('editTitle').value;
-    const description = document.getElementById('editDescription').value;
-    const budget = document.getElementById('editBudget').value;
-    const status = document.getElementById('editStatus').value;
+    const editCampaignId = document.getElementById('editCampaignId');
+    const editTitle = document.getElementById('editTitle');
+    const editDescription = document.getElementById('editDescription');
+    const editBudget = document.getElementById('editBudget');
+    const editStatus = document.getElementById('editStatus');
+    
+    if (!editCampaignId || !editTitle || !editDescription || !editBudget || !editStatus) {
+        console.warn('Edit campaign form fields not found.');
+        return;
+    }
+    
+    const id = editCampaignId.value;
+    const title = editTitle.value;
+    const description = editDescription.value;
+    const budget = editBudget.value;
+    const status = editStatus.value;
 
     try {
         await apiFetch(`/api/campaigns/${id}`, {
@@ -242,7 +301,8 @@ async function saveEditCampaign(event) {
             body: JSON.stringify({ title, description, budget, status })
         });
         alert('Campaign updated successfully');
-        document.getElementById('editCampaignModal').style.display = 'none';
+        const modal = document.getElementById('editCampaignModal');
+        if (modal) modal.style.display = 'none';
         loadCampaigns(); // Перезагрузка списка
     } catch (error) {
         console.error('Error updating campaign:', error);
@@ -278,11 +338,28 @@ document.addEventListener('DOMContentLoaded', () => {
     loadUsers();
     loadCampaigns();
     
-    // Привязка событий форм
-    document.getElementById('addCampaignForm').addEventListener('submit', addCampaign);
-    document.getElementById('editUserForm').addEventListener('submit', saveEditUser); // Предполагается ID формы в модалке
-    document.getElementById('editCampaignForm').addEventListener('submit', saveEditCampaign); // Предполагается ID формы в модалке
+    // Привязка событий форм с проверками на наличие
+    const addCampaignForm = document.getElementById('addCampaignForm');
+    if (addCampaignForm) {
+        addCampaignForm.addEventListener('submit', addCampaign);
+    } else {
+        console.warn('Element not found: addCampaignForm. Add campaign functionality disabled.');
+    }
     
-    // Закрытие модалок (опционально, добавьте кнопки close в HTML)
-    // Пример: document.querySelector('.close').addEventListener('click', () => { modal.style.display = 'none'; });
+    const editUserForm = document.getElementById('editUserForm');
+    if (editUserForm) {
+        editUserForm.addEventListener('submit', saveEditUser);
+    } else {
+        console.warn('Element not found: editUserForm. Edit user functionality disabled.');
+    }
+    
+    const editCampaignForm = document.getElementById('editCampaignForm');
+    if (editCampaignForm) {
+        editCampaignForm.addEventListener('submit', saveEditCampaign);
+    } else {
+        console.warn('Element not found: editCampaignForm. Edit campaign functionality disabled.');
+    }
+    
+    // Закрытие модалок (опционально, добавьте кнопки close в HTML и обработчики здесь)
+    // Пример: const closeButtons = document.querySelectorAll('.close'); closeButtons.forEach(btn => btn.addEventListener('click', () => { btn.parentElement.style.display = 'none'; }));
 });
