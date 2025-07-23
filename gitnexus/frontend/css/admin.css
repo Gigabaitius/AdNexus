@@ -1,0 +1,219 @@
+/* admin.css */
+
+.admin-main {
+  background-color: var(--main-bg-color);
+  padding: 2rem;
+  min-height: 80vh;
+}
+
+.create-user-container, .users-table-container {
+  background-color: var(--text-bright-color);
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+#users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#users-table th, #users-table td {
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+}
+
+#users-table th {
+  background-color: var(--main-accent-color);
+  color: white;
+}
+
+/* Стили только для <main> и его потомков в admin.html */
+/* Общие стили для main */
+main {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background-color: #f9fafb; /* Мягкий светлый фон для контраста */
+    border-radius: 16px; /* Мягкие углы для всей основной секции */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Subtle тень для глубины */
+}
+
+/* Секции внутри main */
+main section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: #ffffff; /* Белый для мягкого контраста */
+    border-radius: 12px; /* Мягкие углы */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Заголовки в секциях */
+main h2, main h3 {
+    color: #1f2937; /* Мягкий тёмно-серый для текста */
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Таблицы */
+main .admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px; /* Мягкие углы для таблицы */
+    overflow: hidden; /* Чтобы углы не обрезались */
+    background-color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+main .admin-table th, main .admin-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb; /* Мягкая граница */
+    color: #4b5563; /* Мягкий серый текст */
+}
+
+main .admin-table th {
+    background-color: #f3f4f6; /* Светлый фон для заголовков */
+    font-weight: 500;
+}
+
+main .admin-table tr:nth-child(even) {
+    background-color: #f9fafb; /* Лёгкая зебра-стрипинг для мягкости */
+}
+
+main .admin-table tr:hover {
+    background-color: #f1f5f9; /* Мягкий hover-эффект */
+    transition: background-color 0.2s ease-in-out;
+}
+
+main .admin-table button {
+    background-color: #3b82f6; /* Мягкий синий для кнопок */
+    color: #ffffff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px; /* Мягкие углы */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-size: 0.875rem;
+}
+
+main .admin-table button:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px); /* Лёгкий lift-эффект для современности */
+}
+
+/* Формы */
+main .admin-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    max-width: 500px;
+}
+
+main .admin-form input, main .admin-form textarea, main .admin-form select {
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db; /* Мягкая граница */
+    border-radius: 8px; /* Мягкие углы */
+    background-color: #f9fafb;
+    color: #374151;
+    font-size: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+main .admin-form input:focus, main .admin-form textarea:focus, main .admin-form select:focus {
+    border-color: #3b82f6; /* Мягкий акцент на фокусе */
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); /* Subtle glow */
+}
+
+main .admin-form textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+main .admin-form button {
+    background-color: #10b981; /* Мягкий зелёный для кнопок submit */
+    color: #ffffff;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 8px; /* Мягкие углы */
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-weight: 500;
+}
+
+main .admin-form button:hover {
+    background-color: #059669;
+    transform: translateY(-1px);
+}
+
+/* Модальные окна (если внутри main; иначе стили работают глобально, но ограничены main) */
+main .modal {
+    display: none;
+    position: fixed; /* Фиксировано относительно viewport, но стили внутри main для контекста */
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(17, 24, 39, 0.4); /* Мягкий полупрозрачный оверлей */
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.3s ease;
+}
+
+main .modal-content {
+    background-color: #ffffff;
+    padding: 2rem;
+    border-radius: 16px; /* Более мягкие углы для модалок */
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    width: 90%;
+    position: relative;
+}
+
+main .close {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280; /* Мягкий серый */
+    transition: color 0.2s ease;
+}
+
+main .close:hover {
+    color: #1f2937;
+}
+
+/* Анимация для модалок */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive дизайн для main */
+@media (max-width: 768px) {
+    main {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    main section {
+        padding: 1rem;
+    }
+
+    main .admin-table {
+        overflow-x: auto; /* Скролл для таблиц на мобильных */
+    }
+
+    main .admin-form {
+        gap: 1rem;
+    }
+
+    main .modal-content {
+        padding: 1.5rem;
+    }
+}

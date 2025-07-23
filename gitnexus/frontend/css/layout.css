@@ -1,0 +1,92 @@
+/* layout.css */
+
+/* Header */
+header {
+  background-color: var(--main-accent-color);
+  padding: 1rem;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+}
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 1rem;
+}
+.nav-links li a {
+  text-decoration: none;
+  color: white;
+  transition: 0.3s;
+  border:none;
+  padding: 10px;
+}
+.nav-links li a:hover {
+  color: #00bfff;
+  color: var(--text-bright-color);
+  background-color: rgb(36, 30, 112);
+  border-color: var(--elements-transition-color);
+  box-shadow: 0 0 5px r#635ae080;
+  padding: 20px;
+}
+.logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.highlight {
+  color: #00bfff;
+}
+
+.burger {
+  display: none;
+  flex-direction: column;
+  cursor: pointer;
+  gap: 5px;
+}
+
+.burger .line {
+  width: 25px;
+  height: 3px;
+  background-color: white;
+}
+
+/*Стили для расширения body минимум до экрана*/
+html, body {
+  height: 100%; /* полная высота документа */
+  margin: 0; /* обязательно убирать отступы по умолчанию */
+  padding: 0;
+}
+
+.wrapper {
+  min-height: 100%; /* wrapper всегда не меньше высоты окна */
+  display: flex; /* flex-контейнер */
+  flex-direction: column; /* вертикальное направление */
+}
+
+main {
+  flex: 1; /* занять все доступное пространство между header и footer */
+}
+
+/* Footer базовые стили */
+footer {
+  background-color: #1c2331;
+  color: white;
+  padding: 0;
+}
+
+footer a {
+  display: inline-block;
+}
+
+footer p {
+  margin-top: 8px;
+}
+
+footer h6 {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}

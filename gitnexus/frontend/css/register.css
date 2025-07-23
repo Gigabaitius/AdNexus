@@ -1,0 +1,35 @@
+/* login.css и register.css */
+
+.form-container {
+  max-width: 400px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background-color: #1f1f1f;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+  color: white;
+}
+
+.form-container h2 {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.form-container input {
+  width: 100%;
+  margin-bottom: 1rem;
+  padding: 0.8rem;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.form-container button {
+  width: 100%;
+  padding: 0.8rem;
+  background-color: #4e8af5;
+  color: white;
+}
+
+.form-container button:hover {
+  background-color: #356dd6;
+}
