@@ -1,0 +1,349 @@
+<!-- *project*\frontend\pages\admin.html -->
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Админ-панель AdNexus</title>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/layout.css" />
+    <link rel="stylesheet" href="../css/responsive.css" />
+    <link rel="stylesheet" href="../css/admin.css" />
+</head>
+
+<body>
+    <div class="wrapper">
+        <div id="header"></div>
+        <!-- После заголовка админ-панели -->
+        <nav class="admin-nav">
+            <button onclick="showSection('users-section')" class="nav-btn active">Users</button>
+            <button onclick="showSection('campaign-management')" class="nav-btn">Campaigns</button>
+        </nav>
+        <!-- Основной контент админ-панели -->
+        <main class="admin-main">
+
+            <!-- Секция пользователей -->
+            <section id="users-section" class="content-section">
+                <h2>Users Management</h2>
+                <div class="create-user-container">
+                    <h2>Создать нового пользователя</h2>
+                    <form id="create-user-form">
+                        <input type="text" id="new-username" name="username" placeholder="Имя пользователя" required />
+                        <input type="email" id="new-email" name="email" placeholder="Email" required />
+                        <input type="password" id="new-password" name="password" placeholder="Пароль" required />
+                        <!-- Флажок для определения прав администратора -->
+                        <label>
+                            <input type="checkbox" id="new-is_admin" name="is_admin" />
+                            Администратор?
+                        </label>
+                        <label>
+                            <input type="checkbox" id="new-is_moderator" name="is_moderator" />
+                            Модератор?
+                        </label>
+
+                        <button type="submit">Создать пользователя</button>
+                    </form>
+                </div>
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Roles</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody"></tbody>
+                </table>
+            </section>
+            <!-- Модальное окно для редактирования пользователя -->
+            <div id="editUserModal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h3>Edit User</h3>
+                    <form id="editUserForm" class="admin-form">
+                        <input type="hidden" id="editUserId">
+                        <input type="text" id="editUsername" placeholder="Username" required>
+                        <input type="email" id="editEmail" placeholder="Email" required>
+                        <div>
+                            <input type="checkbox" id="editRoleIsAdmin" name="editRoleIsAdmin" />
+                            <label for="editRoleIsAdmin">Is Admin?</label>
+                            <input type="checkbox" id="editRoleIsModerator" name="editRoleIsModerator" />
+                            <label for="editRoleIsModerator">Is Moderator?</label>
+                        </div>
+                        <button type="submit">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- В admin.html, после секции User Management -->
+
+            <!-- Campaign Management Section -->
+            <section id="campaign-management" class="content-section" style="display: none;">
+                <h2>Campaign Management</h2>
+
+                <!-- Фильтры и поиск -->
+                <div class="campaign-filters">
+                    <div class="filter-row">
+                        <input type="text" id="campaignSearch" placeholder="Search campaigns..." class="search-input">
+
+                        <select id="campaignStatusFilter" class="filter-select">
+                            <option value="">All Statuses</option>
+                            <option value="draft">Draft</option>
+                            <option value="pending_approval">Pending Approval</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="completed">Completed</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+
+                        <select id="campaignObjectiveFilter" class="filter-select">
+                            <option value="">All Objectives</option>
+                            <option value="brand_awareness">Brand Awareness</option>
+                            <option value="traffic">Traffic</option>
+                            <option value="conversions">Conversions</option>
+                            <option value="engagement">Engagement</option>
+                        </select>
+
+                        <button onclick="campaignManager.loadCampaigns()" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+
+                        <button onclick="campaignManager.showCreateForm()" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Create Campaign
+                        </button>
+                    </div>
+
+                    <div class="filter-row">
+                        <label>Budget Range:</label>
+                        <input type="number" id="budgetMin" placeholder="Min" class="budget-input">
+                        <span>-</span>
+                        <input type="number" id="budgetMax" placeholder="Max" class="budget-input">
+
+                        <label>Date Range:</label>
+                        <input type="date" id="dateFrom" class="date-input">
+                        <span>-</span>
+                        <input type="date" id="dateTo" class="date-input">
+
+                        <label>
+                            <input type="checkbox" id="includeDeleted"> Include Deleted
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div id="campaignStats" class="stats-container" style="display: none;">
+                    <div class="stat-card">
+                        <h4>Total Campaigns</h4>
+                        <div class="stat-value" id="statTotal">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Active Campaigns</h4>
+                        <div class="stat-value" id="statActive">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Total Budget</h4>
+                        <div class="stat-value" id="statBudget">$0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Total Spent</h4>
+                        <div class="stat-value" id="statSpent">$0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Avg Completion</h4>
+                        <div class="stat-value" id="statCompletion">0%</div>
+                    </div>
+                </div>
+
+                <!-- Таблица кампаний -->
+                <div class="table-container">
+                    <table id="campaignsTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Owner</th>
+                                <th>Status</th>
+                                <th>Objective</th>
+                                <th>Budget</th>
+                                <th>Spent</th>
+                                <th>Dates</th>
+                                <th>Completion</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="campaignsTableBody">
+                            <tr>
+                                <td colspan="10" class="loading">Loading campaigns...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Пагинация -->
+                <div id="campaignPagination" class="pagination"></div>
+            </section>
+
+            <!-- Модальное окно для создания/редактирования кампании -->
+            <div id="campaignModal" class="modal" style="display: none;">
+                <div class="modal-content large-modal">
+                    <span class="close" onclick="campaignManager.closeModal()">&times;</span>
+                    <h3 id="campaignModalTitle">Create Campaign</h3>
+
+                    <form id="campaignForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="campaignTitle">Title *</label>
+                                <input type="text" id="campaignTitle" required minlength="3" maxlength="100">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="campaignObjective">Objective</label>
+                                <select id="campaignObjective">
+                                    <option value="">Select Objective</option>
+                                    <option value="brand_awareness">Brand Awareness</option>
+                                    <option value="traffic">Traffic</option>
+                                    <option value="conversions">Conversions</option>
+                                    <option value="engagement">Engagement</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="campaignDescription">Description</label>
+                            <textarea id="campaignDescription" rows="3" maxlength="500"></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="campaignBudget">Total Budget *</label>
+                                <input type="number" id="campaignBudget" required min="1" step="0.01">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="campaignDailyBudget">Daily Budget</label>
+                                <input type="number" id="campaignDailyBudget" min="0" step="0.01">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="campaignCurrency">Currency</label>
+                                <select id="campaignCurrency">
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="GBP">GBP</option>
+                                    <option value="RUB">RUB</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="campaignStartDate">Start Date *</label>
+                                <input type="date" id="campaignStartDate" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="campaignEndDate">End Date *</label>
+                                <input type="date" id="campaignEndDate" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="campaignVisibility">Visibility</label>
+                                <select id="campaignVisibility">
+                                    <option value="public">Public</option>
+                                    <option value="private">Private</option>
+                                    <option value="unlisted">Unlisted</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="campaignLandingUrl">Landing URL</label>
+                            <input type="url" id="campaignLandingUrl" placeholder="https://example.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Target Audience</label>
+                            <div class="target-audience-container">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="targetAgeRange">Age Range</label>
+                                        <input type="text" id="targetAgeRange" placeholder="18-65">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="targetGender">Gender</label>
+                                        <select id="targetGender">
+                                            <option value="all">All</option>
+                                            <option value="male">Male</option>
+                                            <option value="female">Female</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="targetInterests">Interests (comma-separated)</label>
+                                    <input type="text" id="targetInterests" placeholder="technology, gaming, sports">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="targetGeo">Countries (comma-separated country codes)</label>
+                                    <input type="text" id="targetGeo" placeholder="US, UK, CA">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Save Campaign</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="campaignManager.closeModal()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Модальное окно для модерации -->
+            <div id="moderationModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close" onclick="campaignManager.closeModerationModal()">&times;</span>
+                    <h3>Moderate Campaign</h3>
+
+                    <form id="moderationForm">
+                        <div class="form-group">
+                            <label>Decision *</label>
+                            <div class="radio-group">
+                                <label>
+                                    <input type="radio" name="decision" value="approved" required> Approve
+                                </label>
+                                <label>
+                                    <input type="radio" name="decision" value="rejected" required> Reject
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="moderationNotes">Notes (required for rejection)</label>
+                            <textarea id="moderationNotes" rows="4"></textarea>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Submit Decision</button>
+                            <button type="button" class="btn btn-secondary"
+                                onclick="campaignManager.closeModerationModal()">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <div id="footer"></div>
+    </div>
+    <script type="module" src="../js/main.js"></script>
+    <script type="module" src="../js/admin.js" defer></script>
+    <script src="https://kit.fontawesome.com/7afbd3200b.js" crossorigin="anonymous"></script>
+</body>
+
+</html>
