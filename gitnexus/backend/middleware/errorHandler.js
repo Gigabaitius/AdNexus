@@ -5,6 +5,7 @@
  */
 
 const logger = require('../utils/logger');
+const { errorResponse } = require('../utils/responseFormatter');
 
 /**
  * Middleware для централизованной обработки ошибок
@@ -41,21 +42,21 @@ const errorHandler = (err, req, res, next) => {
     // Проверка типа ошибки для формирования ответа
     if (err.isOperational || statusCode < 500) {
         // Операционные ошибки (ожидаемые) - показываем детали
-        return res.status(statusCode).json({
-            success: false,
-            error: {
-                message: err.message,
-                ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-            }
-        });
+        return res.status(statusCode).json(
+            errorResponse(
+                err.message || 'Internal server error',
+                statusCode,
+                process.env.NODE_ENV === 'development' ? { stack: err.stack } : null
+            )
+        );
     }
 
     // Системные ошибки (неожиданные) - скрываем детали в production
     return res.status(500).json({
         success: false,
         error: {
-            message: process.env.NODE_ENV === 'production' 
-                ? 'Внутренняя ошибка сервера' 
+            message: process.env.NODE_ENV === 'production'
+                ? 'Внутренняя ошибка сервера'
                 : err.message,
             ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
         }
@@ -69,17 +70,17 @@ const errorHandler = (err, req, res, next) => {
  */
 function sanitizeBody(body) {
     if (!body) return undefined;
-    
+
     const sanitized = { ...body };
     // Удаляем пароли и токены из логов
     const sensitiveFields = ['password', 'token', 'refreshToken', 'apiKey'];
-    
+
     sensitiveFields.forEach(field => {
         if (sanitized[field]) {
             sanitized[field] = '[REDACTED]';
         }
     });
-    
+
     return sanitized;
 }
 

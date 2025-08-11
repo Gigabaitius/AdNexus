@@ -2,7 +2,9 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const paths = require('./paths');
 const logger = require('../utils/logger');
+
 
 /**
  * Класс-обертка для работы с SQLite
@@ -104,11 +106,9 @@ class Database {
   }
 }
 
-// Создаем экземпляры для каждой БД
+// все в одной БД
 const databases = {
-  main: new Database(path.join(__dirname, '../db', 'adNexus.db')),
-  users: new Database(path.join(__dirname, '../db', 'users.db')),
-  campaigns: new Database(path.join(__dirname, '../db', 'adCampaigns.db'))
+  main: new Database(paths.MAIN_DB)
 };
 
 /**
@@ -121,7 +121,7 @@ async function initializeDatabases() {
   }
 }
 
-module.exports = {
-  databases,
-  initializeDatabases
+module.exports = { 
+  databases, 
+  initializeDatabases 
 };

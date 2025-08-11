@@ -1,3 +1,5 @@
+// *project*\frontend\js\registration.js
+
 document.addEventListener("DOMContentLoaded", () => {
     //Отправка формы регистрации
   document

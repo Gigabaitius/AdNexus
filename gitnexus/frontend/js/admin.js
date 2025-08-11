@@ -1,4 +1,4 @@
-// admin.js - Логика админ-панели для управления пользователями и кампаниями
+// *project*\frontend\js\admin.js - Логика админ-панели для управления пользователями и кампаниями
 // Полная реализация с фиксом URL, обработкой ошибок, модальными окнами и проверками на наличие DOM-элементов.
 // Автор: AI Assistant (на основе репозитория https://github.com/Gigabaitius/AdNexus и контекста)
 // Дата: [текущая дата]
@@ -9,6 +9,41 @@ const API_URL = "http://localhost:3000"; // Порт бэкенда (Express с�
 // Функция для получения JWT-токена из localStorage
 function getToken() {
   return localStorage.getItem("token");
+}
+
+
+const userData = (() => {
+  const token = getToken();
+  if (!token) {
+    console.warn('No token found');
+    return null;
+  }
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      id: payload.user_id,
+      username: payload.username,
+      is_admin: payload.is_admin === 1,
+      is_moderator: payload.is_moderator === 1
+    };
+  } catch (e) {
+    console.error('Error parsing token:', e);
+    return null;
+  }
+})();
+// Добавим отладочный вывод после создания userData
+console.log('Current user data:', userData);
+
+// Добавляем функцию проверки авторизации
+function checkAuth() {
+  if (!userData || !userData.id) {
+    showNotification('Session expired. Please login again.', 'error');
+    setTimeout(() => {
+      window.location.href = 'login.html';
+    }, 2000);
+    return false;
+  }
+  return true;
 }
 
 // Универсальная функция для выполнения fetch-запросов с обработкой ошибок
@@ -86,80 +121,6 @@ async function loadUsers() {
   }
 }
 
-// Загрузка списка кампаний с пагинацией, фильтрами и сортировкой
-/**
- * Загружает и отображает список кампаний с поддержкой query params.
- * @param {number} page - Номер страницы
- * @param {number} limit - Лимит на страницу
- * @param {object} filter - Объект фильтров (например, {status: 'active'})
- * @param {object} sort - Объект сортировки (например, {budget: 'desc'})
- */
-async function loadCampaigns(page = 1, limit = 10, filter = {}, sort = {}) {
-  try {
-    const query = new URLSearchParams({
-      page,
-      limit,
-      filter: JSON.stringify(filter),
-      sort: JSON.stringify(sort),
-    }).toString();
-    const campaigns = await apiFetch(`/api/campaigns?${query}`);
-    const tableBody = document.getElementById("campaignsTableBody");
-    if (tableBody) {
-      tableBody.innerHTML = "";
-      campaigns.forEach((campaign) => {
-        const row = document.createElement("tr");
-        row.innerHTML = `
-                    <td>${campaign.id}</td>
-                    <td>${campaign.title}</td>
-                    <td>${campaign.description}</td>
-                    <td>${campaign.budget}</td>
-                    <td>${campaign.status}</td>
-                    <td>
-                        <button onclick="editCampaign(${campaign.id})">Edit</button>
-                        <button onclick="deleteCampaign(${campaign.id})">Delete</button>
-                    </td>
-                `;
-        tableBody.appendChild(row);
-      });
-    } else {
-      console.warn(
-        "Element not found: campaignsTableBody. Campaigns loaded but not displayed."
-      );
-    }
-  } catch (error) {
-    console.error("Error loading campaigns:", error);
-    alert("Failed to load campaigns. Check console for details.");
-  }
-}
-
-// Добавление новой кампании
-/**
- * Обработчик формы для добавления новой кампании.
- * @param {Event} event - Событие submit формы
- */
-async function addCampaign(event) {
-  event.preventDefault();
-  const title = document.getElementById("title").value;
-  const description = document.getElementById("description").value;
-  const budget = document.getElementById("budget").value;
-  const status = document.getElementById("status").value;
-
-  try {
-    await apiFetch("/api/campaigns", {
-      method: "POST",
-      body: JSON.stringify({ title, description, budget, status }),
-    });
-    alert("Campaign added successfully");
-    loadCampaigns(); // Перезагрузка списка
-    // Очистка формы (опционально)
-    event.target.reset();
-  } catch (error) {
-    console.error("Error adding campaign:", error);
-    alert("Failed to add campaign. Check console for details.");
-  }
-}
-
-
 window.editUser = editUser;
 window.deleteUser = deleteUser;
 // Редактирование пользователя
@@ -169,7 +130,11 @@ window.deleteUser = deleteUser;
  */
 async function editUser(id) {
   try {
-    const user = await apiFetch(`/api/users/${id}`);
+    const response = await apiFetch(`/api/users/${id}`);
+    const user = response.data || response;
+    
+    console.log('Loaded user data:', user); // Для отладки
+
     const modal = document.getElementById("editUserModal");
     if (modal) {
       // Заполняем модальную форму (предполагается наличие модалки в HTML)
@@ -257,148 +222,777 @@ async function deleteUser(id) {
   }
 }
 
-// Редактирование кампании
+
+
+
+
+
+// Секция кампаний
+
+window.showSection = showSection;
 /**
- * Открывает модальное окно для редактирования кампании и загружает данные.
- * @param {number} id - ID кампании
+ * Менеджер для управления кампаниями
+ * @namespace campaignManager
  */
-async function editCampaign(id) {
-  try {
-    const campaign = await apiFetch(`/api/campaigns/${id}`);
-    const modal = document.getElementById("editCampaignModal");
-    if (modal) {
-      // Заполняем модальную форму
-      const editCampaignId = document.getElementById("editCampaignId");
-      const editTitle = document.getElementById("editTitle");
-      const editDescription = document.getElementById("editDescription");
-      const editBudget = document.getElementById("editBudget");
-      const editStatus = document.getElementById("editStatus");
+const campaignManager = {
+  currentPage: 1,
+  itemsPerPage: 20,
+  currentCampaignId: null,
+  isEditMode: false,
 
-      if (
-        editCampaignId &&
-        editTitle &&
-        editDescription &&
-        editBudget &&
-        editStatus
-      ) {
-        editCampaignId.value = campaign.id;
-        editTitle.value = campaign.title;
-        editDescription.value = campaign.description;
-        editBudget.value = campaign.budget;
-        editStatus.value = campaign.status;
+  /**
+   * Инициализация менеджера кампаний
+   */
+  init() {
+    // Загружаем кампании при переключении на вкладку
 
-        // Показываем модалку
-        modal.style.display = "block";
-      } else {
-        console.warn("Form fields not found in editCampaignModal.");
-      }
-    } else {
-      console.warn("Element not found: editCampaignModal.");
+    const campaignTab = document.querySelector('[onclick*="showSection(\'campaign-management\')"]');
+    if (campaignTab) {
+      campaignTab.addEventListener('click', () => {
+        this.loadCampaigns();
+        this.loadStats();
+      });
     }
-  } catch (error) {
-    console.error("Error loading campaign for edit:", error);
-    alert("Failed to load campaign data.");
-  }
-}
 
-// Обработчик сохранения редактирования кампании
-/**
- * Обработчик формы для сохранения изменений кампании.
- * @param {Event} event - Событие submit формы
- */
-async function saveEditCampaign(event) {
-  event.preventDefault();
-  const editCampaignId = document.getElementById("editCampaignId");
-  const editTitle = document.getElementById("editTitle");
-  const editDescription = document.getElementById("editDescription");
-  const editBudget = document.getElementById("editBudget");
-  const editStatus = document.getElementById("editStatus");
+    // Настройка обработчиков событий
+    this.setupEventListeners();
 
-  if (
-    !editCampaignId ||
-    !editTitle ||
-    !editDescription ||
-    !editBudget ||
-    !editStatus
-  ) {
-    console.warn("Edit campaign form fields not found.");
-    return;
-  }
+    // Устанавливаем минимальную дату для начала кампании
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('campaignStartDate').min = today;
+  },
 
-  const id = editCampaignId.value;
-  const title = editTitle.value;
-  const description = editDescription.value;
-  const budget = editBudget.value;
-  const status = editStatus.value;
-
-  try {
-    await apiFetch(`/api/campaigns/${id}`, {
-      method: "PUT",
-      body: JSON.stringify({ title, description, budget, status }),
+  /**
+   * Настройка обработчиков событий
+   */
+  setupEventListeners() {
+    // Форма создания/редактирования
+    document.getElementById('campaignForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.saveCampaign();
     });
-    alert("Campaign updated successfully");
-    const modal = document.getElementById("editCampaignModal");
-    if (modal) modal.style.display = "none";
-    loadCampaigns(); // Перезагрузка списка
-  } catch (error) {
-    console.error("Error updating campaign:", error);
-    alert("Failed to update campaign.");
-  }
-}
 
-// Удаление кампании
-/**
- * Удаляет кампанию после подтверждения.
- * @param {number} id - ID кампании
- */
-async function deleteCampaign(id) {
-  if (confirm("Are you sure you want to delete this campaign?")) {
+    // Форма модерации
+    document.getElementById('moderationForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.moderateCampaign();
+    });
+
+    // Изменение даты начала обновляет минимальную дату окончания
+    document.getElementById('campaignStartDate').addEventListener('change', (e) => {
+      const startDate = e.target.value;
+      document.getElementById('campaignEndDate').min = startDate;
+    });
+
+    // Фильтры по Enter
+    ['campaignSearch', 'budgetMin', 'budgetMax'].forEach(id => {
+      document.getElementById(id).addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.loadCampaigns();
+        }
+      });
+    });
+  },
+
+  /**
+   * Загружает список кампаний
+   * @param {number} [page=1] - Номер страницы
+   */
+  async loadCampaigns(page = 1) {
     try {
-      await apiFetch(`/api/campaigns/${id}`, { method: "DELETE" });
-      alert("Campaign deleted successfully");
-      loadCampaigns(); // Перезагрузка списка
+      this.currentPage = page;
+
+      // Собираем параметры фильтрации
+      const params = new URLSearchParams({
+        page: page,
+        limit: this.itemsPerPage,
+        search: document.getElementById('campaignSearch').value,
+        status: document.getElementById('campaignStatusFilter').value,
+        objective: document.getElementById('campaignObjectiveFilter').value,
+        budget_min: document.getElementById('budgetMin').value,
+        budget_max: document.getElementById('budgetMax').value,
+        date_from: document.getElementById('dateFrom').value,
+        date_to: document.getElementById('dateTo').value,
+        include_deleted: document.getElementById('includeDeleted').checked
+      });
+
+      // Удаляем пустые параметры
+      [...params.entries()].forEach(([key, value]) => {
+        if (!value) params.delete(key);
+      });
+
+      const response = await apiFetch(`/api/campaigns?${params}`, {
+        method: 'GET'
+      });
+
+      if (response.success) {
+        this.displayCampaigns(response.data);
+        this.displayPagination(response.pagination);
+      }
     } catch (error) {
-      console.error("Error deleting campaign:", error);
-      alert("Failed to delete campaign.");
+      console.error('Error loading campaigns:', error);
+      showNotification('Error loading campaigns', 'error');
+    }
+  },
+
+  /**
+   * Отображает кампании в таблице
+   * @param {Array} campaigns - Массив кампаний
+   */
+  displayCampaigns(campaigns) {
+    const tbody = document.getElementById('campaignsTableBody');
+
+    if (campaigns.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty">No campaigns found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = campaigns.map(campaign => {
+      const statusClass = this.getStatusClass(campaign.status);
+      const completionRate = campaign.completion_rate || 0;
+
+      return `
+                <tr>
+                    <td>${campaign.id}</td>
+                    <td>${this.escapeHtml(campaign.title)}</td>
+                    <td>${campaign.owner_name || 'Unknown'}</td>
+                    <td><span class="status ${statusClass}">${campaign.status}</span></td>
+                    <td>${campaign.objective || '-'}</td>
+                    <td>$${parseFloat(campaign.budget_total).toFixed(2)}</td>
+                    <td>$${parseFloat(campaign.budget_spent).toFixed(2)}</td>
+                    <td>${this.formatDateRange(campaign.start_date, campaign.end_date)}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${completionRate}%"></div>
+                            <span class="progress-text">${completionRate}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        ${this.generateActionButtons(campaign)}
+                    </td>
+                </tr>
+            `;
+    }).join('');
+  },
+
+  /**
+   * Генерирует кнопки действий для кампании
+   * @param {Object} campaign - Объект кампании
+   * @returns {string} HTML кнопок
+   */
+  generateActionButtons(campaign) {
+    const buttons = [];
+
+    // Просмотр
+    buttons.push(`<button onclick="campaignManager.viewCampaign(${campaign.id})" class="btn btn-sm btn-info" title="View">
+            <i class="fas fa-eye"></i>
+        </button>`);
+
+    // Редактирование (только для черновиков и отклоненных)
+    if (['draft', 'rejected'].includes(campaign.status)) {
+      buttons.push(`<button onclick="campaignManager.editCampaign(${campaign.id})" class="btn btn-sm btn-primary" title="Edit">
+                <i class="fas fa-edit"></i>
+            </button>`);
+    }
+
+    // Управление статусом
+    if (campaign.status === 'draft') {
+      buttons.push(`<button onclick="campaignManager.submitForApproval(${campaign.id})" class="btn btn-sm btn-success" title="Submit for Approval">
+                <i class="fas fa-paper-plane"></i>
+            </button>`);
+    } else if (campaign.status === 'active') {
+      buttons.push(`<button onclick="campaignManager.pauseCampaign(${campaign.id})" class="btn btn-sm btn-warning" title="Pause">
+                <i class="fas fa-pause"></i>
+            </button>`);
+    } else if (campaign.status === 'paused') {
+      buttons.push(`<button onclick="campaignManager.resumeCampaign(${campaign.id})" class="btn btn-sm btn-success" title="Resume">
+                <i class="fas fa-play"></i>
+            </button>`);
+    }
+
+    // Модерация (для модераторов/админов)
+    if (campaign.status === 'pending_approval' && (userData.is_admin || userData.is_moderator)) {
+      buttons.push(`<button onclick="campaignManager.showModerationModal(${campaign.id})" class="btn btn-sm btn-purple" title="Moderate">
+                <i class="fas fa-gavel"></i>
+            </button>`);
+    }
+
+    // Удаление
+    if (!campaign.deleted_at) {
+      buttons.push(`<button onclick="campaignManager.deleteCampaign(${campaign.id})" class="btn btn-sm btn-danger" title="Delete">
+                <i class="fas fa-trash"></i>
+            </button>`);
+    }
+
+    return buttons.join(' ');
+  },
+
+  /**
+   * Загружает статистику кампаний
+   */
+  async loadStats() {
+    try {
+      const response = await apiFetch('/api/campaigns/stats', {
+        method: 'GET'
+      });
+
+      if (response.success) {
+        const stats = response.data;
+        document.getElementById('campaignStats').style.display = 'flex';
+        document.getElementById('statTotal').textContent = stats.total;
+        document.getElementById('statActive').textContent = stats.active_campaigns;
+        document.getElementById('statBudget').textContent = `$${stats.total_budget.toFixed(2)}`;
+        document.getElementById('statSpent').textContent = `$${stats.total_spent.toFixed(2)}`;
+        document.getElementById('statCompletion').textContent = `${stats.completion_rate_avg}%`;
+      }
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  },
+
+  /**
+   * Показывает форму создания кампании
+   */
+  showCreateForm() {
+    this.isEditMode = false;
+    this.currentCampaignId = null;
+    document.getElementById('campaignModalTitle').textContent = 'Create Campaign';
+    document.getElementById('campaignForm').reset();
+
+    // Устанавливаем значения по умолчанию
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('campaignStartDate').value = today;
+    document.getElementById('campaignCurrency').value = 'USD';
+    document.getElementById('campaignVisibility').value = 'public';
+
+    document.getElementById('campaignModal').style.display = 'block';
+  },
+
+  /**
+   * Редактирует кампанию
+   * @param {number} id - ID кампании
+   */
+  async editCampaign(id) {
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}`, {
+        method: 'GET'
+      });
+
+      if (response.success) {
+        const campaign = response.data;
+        this.isEditMode = true;
+        this.currentCampaignId = id;
+
+        document.getElementById('campaignModalTitle').textContent = 'Edit Campaign';
+
+        // Заполняем форму данными
+        document.getElementById('campaignTitle').value = campaign.title;
+        document.getElementById('campaignDescription').value = campaign.description || '';
+        document.getElementById('campaignObjective').value = campaign.objective || '';
+        document.getElementById('campaignBudget').value = campaign.budget_total;
+        document.getElementById('campaignDailyBudget').value = campaign.budget_daily || '';
+        document.getElementById('campaignCurrency').value = campaign.currency || 'USD';
+        document.getElementById('campaignStartDate').value = campaign.start_date;
+        document.getElementById('campaignEndDate').value = campaign.end_date;
+        document.getElementById('campaignVisibility').value = campaign.visibility || 'public';
+        document.getElementById('campaignLandingUrl').value = campaign.landing_url || '';
+
+        // Заполняем целевую аудиторию
+        if (campaign.target_audience) {
+          document.getElementById('targetAgeRange').value = campaign.target_audience.age_range || '';
+          document.getElementById('targetGender').value = campaign.target_audience.gender || 'all';
+          document.getElementById('targetInterests').value = (campaign.target_audience.interests || []).join(', ');
+          document.getElementById('targetGeo').value = (campaign.target_audience.geo || []).join(', ');
+        }
+
+        document.getElementById('campaignModal').style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error loading campaign:', error);
+      showNotification('Error loading campaign', 'error');
+    }
+  },
+
+  /**
+   * Сохраняет кампанию
+   */
+  async saveCampaign() {
+    try {
+      // Проверяем авторизацию
+    if (!checkAuth()) {
+      return;
+    }
+    // Проверяем наличие user_id
+    if (!userData || !userData.id) {
+      console.error('User data:', userData);
+      throw new Error('User not authenticated. Please login again.');
+    }
+      // Собираем данные формы
+      const formData = {
+        user_id: userData.id, // Добавляем ID текущего пользователя
+        title: document.getElementById('campaignTitle').value,
+        description: document.getElementById('campaignDescription').value,
+        objective: document.getElementById('campaignObjective').value,
+        budget_total: parseFloat(document.getElementById('campaignBudget').value),
+        budget_daily: document.getElementById('campaignDailyBudget').value ?
+          parseFloat(document.getElementById('campaignDailyBudget').value) : null,
+        currency: document.getElementById('campaignCurrency').value,
+        start_date: document.getElementById('campaignStartDate').value,
+        end_date: document.getElementById('campaignEndDate').value,
+        visibility: document.getElementById('campaignVisibility').value,
+        landing_url: document.getElementById('campaignLandingUrl').value
+      };
+      console.log('Sending campaign data:', formData); // Для отладки
+
+      // Проверяем, что user_id существует
+    if (!formData.user_id) {
+      throw new Error('User ID not found. Please login again.');
+    }
+
+    // Валидация обязательных полей
+    if (!formData.title || !formData.budget_total || !formData.start_date || !formData.end_date) {
+      throw new Error('Please fill all required fields');
+    }
+
+      // Собираем целевую аудиторию
+      const ageRange = document.getElementById('targetAgeRange').value;
+      const interests = document.getElementById('targetInterests').value
+        .split(',').map(s => s.trim()).filter(s => s);
+      const geo = document.getElementById('targetGeo').value
+        .split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+
+      if (ageRange || interests.length || geo.length) {
+        formData.target_audience = {
+          age_range: ageRange,
+          gender: document.getElementById('targetGender').value,
+          interests: interests,
+          geo: geo
+        };
+      }
+
+      const url = this.isEditMode ?
+        `/api/campaigns/${this.currentCampaignId}` :
+        '/api/campaigns';
+
+      const method = this.isEditMode ? 'PUT' : 'POST';
+
+      const response = await apiFetch(url, {
+        method: method,
+        body: JSON.stringify(formData)
+      });
+
+      if (response.success) {
+        showNotification(
+          this.isEditMode ? 'Campaign updated successfully' : 'Campaign created successfully',
+          'success'
+        );
+        this.closeModal();
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error saving campaign:', error);
+      showNotification(error.message || 'Error saving campaign', 'error');
+    }
+  },
+
+  /**
+   * Просматривает детали кампании
+   * @param {number} id - ID кампании
+   */
+  async viewCampaign(id) {
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}`, {
+        method: 'GET'
+      });
+
+      if (response.success) {
+        const campaign = response.data;
+
+        // Создаем модальное окно с деталями
+        const modalContent = `
+                    <div class="campaign-details">
+                        <h3>${this.escapeHtml(campaign.title)}</h3>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <strong>Status:</strong> 
+                                <span class="status ${this.getStatusClass(campaign.status)}">${campaign.status}</span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>Owner:</strong> ${campaign.owner_name}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Objective:</strong> ${campaign.objective || '-'}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Budget:</strong> $${campaign.budget_total} ${campaign.currency}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Spent:</strong> $${campaign.budget_spent}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Remaining:</strong> $${campaign.budget_remaining}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Start Date:</strong> ${this.formatDate(campaign.start_date)}
+                            </div>
+                            <div class="detail-item">
+                                <strong>End Date:</strong> ${this.formatDate(campaign.end_date)}
+                            </div>
+                            <div class="detail-item">
+                                <strong>Completion:</strong> ${campaign.completion_rate}%
+                            </div>
+                            <div class="detail-item">
+                                <strong>Visibility:</strong> ${campaign.visibility}
+                            </div>
+                        </div>
+                        
+                        ${campaign.description ? `
+                            <div class="detail-section">
+                                <h4>Description</h4>
+                                <p>${this.escapeHtml(campaign.description)}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${campaign.target_audience ? `
+                            <div class="detail-section">
+                                <h4>Target Audience</h4>
+                                <ul>
+                                    ${campaign.target_audience.age_range ?
+              `<li><strong>Age:</strong> ${campaign.target_audience.age_range}</li>` : ''}
+                                    ${campaign.target_audience.gender ?
+              `<li><strong>Gender:</strong> ${campaign.target_audience.gender}</li>` : ''}
+                                    ${campaign.target_audience.interests?.length ?
+              `<li><strong>Interests:</strong> ${campaign.target_audience.interests.join(', ')}</li>` : ''}
+                                    ${campaign.target_audience.geo?.length ?
+              `<li><strong>Countries:</strong> ${campaign.target_audience.geo.join(', ')}</li>` : ''}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${campaign.approval_status === 'rejected' && campaign.approval_notes ? `
+                            <div class="detail-section rejection-notes">
+                                <h4>Rejection Reason</h4>
+                                <p>${this.escapeHtml(campaign.approval_notes)}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+        this.showInfoModal('Campaign Details', modalContent);
+      }
+    } catch (error) {
+      console.error('Error viewing campaign:', error);
+      showNotification('Error loading campaign details', 'error');
+    }
+  },
+
+  /**
+   * Отправляет кампанию на модерацию
+   * @param {number} id - ID кампании
+   */
+  async submitForApproval(id) {
+    if (!confirm('Submit this campaign for approval?')) return;
+
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'pending_approval' })
+      });
+
+      if (response.success) {
+        showNotification('Campaign submitted for approval', 'success');
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error submitting campaign:', error);
+      showNotification(error.message || 'Error submitting campaign', 'error');
+    }
+  },
+
+  /**
+     * Приостанавливает кампанию
+     * @param {number} id - ID кампании
+     */
+  async pauseCampaign(id) {
+    if (!confirm('Pause this campaign?')) return;
+
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'paused' })
+      });
+
+      if (response.success) {
+        showNotification('Campaign paused', 'success');
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error pausing campaign:', error);
+      showNotification('Error pausing campaign', 'error');
+    }
+  },
+
+  /** * Возобновляет кампанию
+   * @param {number} id - ID кампании
+   */
+  async resumeCampaign(id) {
+    if (!confirm('Resume this campaign?')) return;
+
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'active' })
+      });
+
+      if (response.success) {
+        showNotification('Campaign resumed', 'success');
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error resuming campaign:', error);
+      showNotification('Error resuming campaign', 'error');
+    }
+  },
+
+  /**
+   * Показывает модальное окно модерации
+   * @param {number} id - ID кампании
+   */
+  showModerationModal(id) {
+    this.currentCampaignId = id;
+    document.getElementById('moderationForm').reset();
+    document.getElementById('moderationModal').style.display = 'block';
+  },
+
+  /**
+   * Модерирует кампанию
+   */
+  async moderateCampaign() {
+    try {
+      const decision = document.querySelector('input[name="decision"]:checked').value;
+      const notes = document.getElementById('moderationNotes').value;
+
+      if (decision === 'rejected' && !notes) {
+        showNotification('Please provide notes for rejection', 'error');
+        return;
+      }
+
+      const response = await apiFetch(`/api/campaigns/${this.currentCampaignId}/moderate`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, notes })
+      });
+
+      if (response.success) {
+        showNotification(`Campaign ${decision}`, 'success');
+        this.closeModerationModal();
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error moderating campaign:', error);
+      showNotification('Error moderating campaign', 'error');
+    }
+  },
+
+  /**
+   * Удаляет кампанию
+   * @param {number} id - ID кампании
+   */
+  async deleteCampaign(id) {
+    if (!confirm('Are you sure you want to delete this campaign?')) return;
+
+    try {
+      const response = await apiFetch(`/api/campaigns/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.success) {
+        showNotification('Campaign deleted successfully', 'success');
+        this.loadCampaigns(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      showNotification('Error deleting campaign', 'error');
+    }
+  },
+
+  /**
+   * Отображает пагинацию
+   * @param {Object} pagination - Данные пагинации
+   */
+  displayPagination(pagination) {
+    const container = document.getElementById('campaignPagination');
+    const { page, pages, total } = pagination;
+
+    if (pages <= 1) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '<div class="pagination-info">Total: ' + total + ' campaigns</div>';
+    html += '<div class="pagination-buttons">';
+
+    // Кнопка "Предыдущая"
+    if (page > 1) {
+      html += `<button onclick="campaignManager.loadCampaigns(${page - 1})" class="btn btn-sm">Previous</button>`;
+    }
+
+    // Номера страниц
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || (i >= page - 2 && i <= page + 2)) {
+        html += `<button onclick="campaignManager.loadCampaigns(${i})" 
+                         class="btn btn-sm ${i === page ? 'btn-primary' : ''}">${i}</button>`;
+      } else if (i === page - 3 || i === page + 3) {
+        html += '<span>...</span>';
+      }
+    }
+
+    // Кнопка "Следующая"
+    if (page < pages) {
+      html += `<button onclick="campaignManager.loadCampaigns(${page + 1})" class="btn btn-sm">Next</button>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  },
+
+  /**
+   * Закрывает модальное окно
+   */
+  closeModal() {
+    document.getElementById('campaignModal').style.display = 'none';
+    document.getElementById('campaignForm').reset();
+  },
+
+  /**
+   * Закрывает модальное окно модерации
+   */
+  closeModerationModal() {
+    document.getElementById('moderationModal').style.display = 'none';
+    document.getElementById('moderationForm').reset();
+  },
+
+  /**
+   * Показывает информационное модальное окно
+   * @param {string} title - Заголовок
+   * @param {string} content - Содержимое
+   */
+  showInfoModal(title, content) {
+  // Проверяем, нет ли уже открытого информационного модального окна
+  const existingModal = document.getElementById('infoModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // Создаем модальное окно с правильной структурой
+  const modal = document.createElement('div');
+  modal.id = 'infoModal';
+  modal.className = 'modal';
+  modal.style.display = 'flex'; // Используем flex для центрирования
+  modal.innerHTML = `
+    <div class="modal-content large-modal">
+      <span class="close">&times;</span>
+      <h3>${title}</h3>
+      ${content}
+    </div>
+  `;
+  
+  // Добавляем в body
+  document.body.appendChild(modal);
+  
+  // Добавляем обработчики закрытия
+  const closeBtn = modal.querySelector('.close');
+  closeBtn.onclick = () => modal.remove();
+  
+  // Закрытие по клику на фон
+  modal.onclick = (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  };
+  },
+
+  /**
+   * Получает CSS класс для статуса
+   * @param {string} status - Статус кампании
+   * @returns {string} CSS класс
+   */
+  getStatusClass(status) {
+    const statusClasses = {
+      'draft': 'status-draft',
+      'pending_approval': 'status-pending',
+      'active': 'status-active',
+      'paused': 'status-paused',
+      'completed': 'status-completed',
+      'rejected': 'status-rejected'
+    };
+    return statusClasses[status] || '';
+  },
+
+  /**
+   * Форматирует дату
+   * @param {string} date - Дата в ISO формате
+   * @returns {string} Отформатированная дата
+   */
+  formatDate(date) {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString();
+  },
+
+  /**
+   * Форматирует диапазон дат
+   * @param {string} startDate - Начальная дата
+   * @param {string} endDate - Конечная дата
+   * @returns {string} Отформатированный диапазон
+   */
+  formatDateRange(startDate, endDate) {
+    return `${this.formatDate(startDate)} - ${this.formatDate(endDate)}`;
+  },
+
+  /**
+   * Экранирует HTML
+   * @param {string} text - Текст для экранирования
+   * @returns {string} Экранированный текст
+   */
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+};
+window.campaignManager = campaignManager;
+
+function showNotification(message, type = 'info') {
+  alert(`${type.toUpperCase()}: ${message}`);
+}
+// Функция переключения секций
+function showSection(sectionName) {
+  // Убираем active со всех кнопок
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // Добавляем active на нужную кнопку
+  const activeBtn = document.querySelector(`[onclick*="${sectionName}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+  
+  // Скрываем все секции
+  document.querySelectorAll('.content-section').forEach(section => {
+    section.style.display = 'none';
+  });
+
+  // Показываем нужную секцию
+  const section = document.getElementById(sectionName);
+  if (section) {
+    section.style.display = 'block';
+
+    // Загружаем данные для секции
+    if (sectionName === 'campaign-management') {
+      campaignManager.loadCampaigns();
+      campaignManager.loadStats();
     }
   }
 }
-
-// Создание нового пользователя
-/**
- * Опрашивает inputs для создания нового пользователя.
- * @param ЗАПОЛНИТЬ
- */
-document.getElementById("create-user-form").addEventListener("submit", async (event) => {
-  event.preventDefault(); // предотвращаем отправку формы
-
-  // Получаем данные из формы
-  const username = document.getElementById("new-username").value;
-  const email = document.getElementById("new-email").value;
-  const password = document.getElementById("new-password").value;
-  const is_admin = document.getElementById("new-is_admin").checked;
-  const is_moderator = document.getElementById("new-is_moderator").checked;
-
-  const newUser = { username, email, password, is_admin, is_moderator };
-
-
-  try {
-    const result = await apiFetch(`/api/register`, {
-      method: "POST", 
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + localStorage.getItem("token")
-      }, 
-      body: JSON.stringify(newUser)
-    });
-    alert("Новый пользователь создан: " + result.message);
-    event.target.reset(); // очищаем форму
-    loadUsers(); // обновляем список пользователей
-  } catch (error) {
-    console.error("Ошибка создания пользователя:", error);
-    alert("Ошибка сервера.");
-  }
-});
 
 // Инициализация при загрузке страницы
 document.addEventListener("DOMContentLoaded", () => {
@@ -408,17 +1002,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Загрузка данных
   loadUsers();
-  loadCampaigns();
+  campaignManager.init();
 
   // Привязка событий форм с проверками на наличие
-  const addCampaignForm = document.getElementById("addCampaignForm");
-  if (addCampaignForm) {
-    addCampaignForm.addEventListener("submit", addCampaign);
-  } else {
-    console.warn(
-      "Element not found: addCampaignForm. Add campaign functionality disabled."
-    );
-  }
 
   const editUserForm = document.getElementById("editUserForm");
   if (editUserForm) {
@@ -429,31 +1015,54 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  const editCampaignForm = document.getElementById("editCampaignForm");
-  if (editCampaignForm) {
-    editCampaignForm.addEventListener("submit", saveEditCampaign);
-  } else {
-    console.warn(
-      "Element not found: editCampaignForm. Edit campaign functionality disabled."
-    );
-  }
-
   // Закрытие модалок (опционально, добавьте кнопки close в HTML и обработчики здесь)
   const modals = document.querySelectorAll(".modal");
-modals.forEach((modal) => {
-  // Закрытие по клику на крестик
-  const closeBtn = modal.querySelector(".close");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      modal.style.display = "none";
-    });
-  }
-  
-  // Закрытие по клику на фон
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) {
-      modal.style.display = "none";
+  modals.forEach((modal) => {
+    // Закрытие по клику на крестик
+    const closeBtn = modal.querySelector(".close");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        modal.style.display = "none";
+      });
     }
+
+    // Создание нового пользователя
+    /**
+     * Опрашивает inputs для создания нового пользователя.
+     * @param ЗАПОЛНИТЬ
+     */
+    document.getElementById("create-user-form").addEventListener("submit", async (event) => {
+      event.preventDefault(); // предотвращаем отправку формы
+
+      // Получаем данные из формы
+      const username = document.getElementById("new-username").value;
+      const email = document.getElementById("new-email").value;
+      const password = document.getElementById("new-password").value;
+      const is_admin = document.getElementById("new-is_admin").checked;
+      const is_moderator = document.getElementById("new-is_moderator").checked;
+
+      const newUser = { username, email, password, is_admin, is_moderator };
+
+
+      try {
+        const result = await apiFetch(`/api/register`, {
+          method: "POST",
+          body: JSON.stringify(newUser)
+        });
+        alert("Новый пользователь создан: " + result.message);
+        event.target.reset(); // очищаем форму
+        loadUsers(); // обновляем список пользователей
+      } catch (error) {
+        console.error("Ошибка создания пользователя:", error);
+        alert("Ошибка сервера.");
+      }
+    });
+
+    // Закрытие по клику на фон
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        modal.style.display = "none";
+      }
+    });
   });
-});
 });

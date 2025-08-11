@@ -2,6 +2,7 @@
 
 const Tag = require('../models/tagModel');
 const logger = require('../utils/logger');
+const { successResponse, errorResponse, paginatedResponse } = require('../utils/responseFormatter');
 
 const tagController = {
   // Создание нового тега

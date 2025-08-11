@@ -3,6 +3,7 @@
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
 const path = require('path');
+const paths = require('../config/paths');
 
 /**
  * Класс для управления миграциями базы данных
@@ -137,7 +138,7 @@ class MigrationRunner {
 
 // Скрипт для запуска миграций
 if (require.main === module) {
-  const dbPath = process.argv[2] || path.join(__dirname, '..', 'adNexus.db');
+  const dbPath = process.argv[2] || paths.MAIN_DB; // Используем единый путь
   const action = process.argv[3] || 'up';
   
   const runner = new MigrationRunner(dbPath);
