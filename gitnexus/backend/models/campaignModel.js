@@ -1,4 +1,4 @@
-// models/campaignModel.js
+// *project*\backend\models\campaignModel.js
 
 const BaseModel = require('./baseModel');
 const { databases } = require('../config/database');

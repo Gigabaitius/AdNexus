@@ -1,4 +1,4 @@
-// validators/campaignValidation.js
+// *project*\backend\validators\campaignValidation.js
 
 const Joi = require('joi');
 

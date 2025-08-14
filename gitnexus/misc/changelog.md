@@ -1,3 +1,17 @@
+0.0.4 - Platforms
+
+// migrations
+// Произведена миграция для создания таблицы платформ v1
+
+// Добавлены:
+backend\models\platformModel.js
+backend\controllers\platformController.js
+backend\routes\platformRoutes.js
+backend\validators\platformValidation.js
+
+// Базовый функционал активен
+
+
 0.0.3 - Campaigns
 
 // Campaigns are working, beta

@@ -37,6 +37,7 @@ const userRoutes = require("./routes/userRoutes");
 const authRoutes = require("./routes/authRoutes");
 const campaignRoutes = require('./routes/campaignRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+const platformRoutes = require('./routes/platformRoutes');
 
 // Создание экземпляра Express-приложения
 const app = express();
@@ -70,6 +71,7 @@ app.use("/api", userRoutes);
 app.use("/api", authRoutes);
 app.use('/api', campaignRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api', platformRoutes);
 
 /** Тестовый маршрут для проверки работы логгера ошибок
  * 

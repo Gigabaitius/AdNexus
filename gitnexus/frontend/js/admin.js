@@ -1,7 +1,4 @@
 // *project*\frontend\js\admin.js - Логика админ-панели для управления пользователями и кампаниями
-// Полная реализация с фиксом URL, обработкой ошибок, модальными окнами и проверками на наличие DOM-элементов.
-// Автор: AI Assistant (на основе репозитория https://github.com/Gigabaitius/AdNexus и контекста)
-// Дата: [текущая дата]
 
 // Базовый URL API (измените на production URL или используйте .env)
 const API_URL = "http://localhost:3000"; // Порт бэкенда (Express сервер)
@@ -132,7 +129,7 @@ async function editUser(id) {
   try {
     const response = await apiFetch(`/api/users/${id}`);
     const user = response.data || response;
-    
+
     console.log('Loaded user data:', user); // Для отладки
 
     const modal = document.getElementById("editUserModal");
@@ -519,14 +516,14 @@ const campaignManager = {
   async saveCampaign() {
     try {
       // Проверяем авторизацию
-    if (!checkAuth()) {
-      return;
-    }
-    // Проверяем наличие user_id
-    if (!userData || !userData.id) {
-      console.error('User data:', userData);
-      throw new Error('User not authenticated. Please login again.');
-    }
+      if (!checkAuth()) {
+        return;
+      }
+      // Проверяем наличие user_id
+      if (!userData || !userData.id) {
+        console.error('User data:', userData);
+        throw new Error('User not authenticated. Please login again.');
+      }
       // Собираем данные формы
       const formData = {
         user_id: userData.id, // Добавляем ID текущего пользователя
@@ -545,14 +542,14 @@ const campaignManager = {
       console.log('Sending campaign data:', formData); // Для отладки
 
       // Проверяем, что user_id существует
-    if (!formData.user_id) {
-      throw new Error('User ID not found. Please login again.');
-    }
+      if (!formData.user_id) {
+        throw new Error('User ID not found. Please login again.');
+      }
 
-    // Валидация обязательных полей
-    if (!formData.title || !formData.budget_total || !formData.start_date || !formData.end_date) {
-      throw new Error('Please fill all required fields');
-    }
+      // Валидация обязательных полей
+      if (!formData.title || !formData.budget_total || !formData.start_date || !formData.end_date) {
+        throw new Error('Please fill all required fields');
+      }
 
       // Собираем целевую аудиторию
       const ageRange = document.getElementById('targetAgeRange').value;
@@ -877,38 +874,38 @@ const campaignManager = {
    * @param {string} content - Содержимое
    */
   showInfoModal(title, content) {
-  // Проверяем, нет ли уже открытого информационного модального окна
-  const existingModal = document.getElementById('infoModal');
-  if (existingModal) {
-    existingModal.remove();
-  }
+    // Проверяем, нет ли уже открытого информационного модального окна
+    const existingModal = document.getElementById('infoModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
 
-  // Создаем модальное окно с правильной структурой
-  const modal = document.createElement('div');
-  modal.id = 'infoModal';
-  modal.className = 'modal';
-  modal.style.display = 'flex'; // Используем flex для центрирования
-  modal.innerHTML = `
+    // Создаем модальное окно с правильной структурой
+    const modal = document.createElement('div');
+    modal.id = 'infoModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex'; // Используем flex для центрирования
+    modal.innerHTML = `
     <div class="modal-content large-modal">
       <span class="close">&times;</span>
       <h3>${title}</h3>
       ${content}
     </div>
   `;
-  
-  // Добавляем в body
-  document.body.appendChild(modal);
-  
-  // Добавляем обработчики закрытия
-  const closeBtn = modal.querySelector('.close');
-  closeBtn.onclick = () => modal.remove();
-  
-  // Закрытие по клику на фон
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
-  };
+
+    // Добавляем в body
+    document.body.appendChild(modal);
+
+    // Добавляем обработчики закрытия
+    const closeBtn = modal.querySelector('.close');
+    closeBtn.onclick = () => modal.remove();
+
+    // Закрытие по клику на фон
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
   },
 
   /**
@@ -962,20 +959,757 @@ const campaignManager = {
 };
 window.campaignManager = campaignManager;
 
+// Менеджер для управления площадками
+const platformManager = {
+  currentPage: 1,
+  itemsPerPage: 20,
+  currentPlatformId: null,
+  isEditMode: false,
+
+  init() {
+    this.setupEventListeners();
+  },
+
+  setupEventListeners() {
+    // Форма создания/редактирования
+    document.getElementById('platformForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.savePlatform();
+    });
+
+    // Форма модерации
+    document.getElementById('platformModerationForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.moderatePlatform();
+    });
+
+    // Изменение модели ценообразования
+    document.getElementById('platformPricingModel').addEventListener('change', (e) => {
+      this.updatePricingFields(e.target.value);
+    });
+
+    // Проверка доступности URL
+    let urlTimeout;
+    document.getElementById('platformUrl').addEventListener('input', (e) => {
+      clearTimeout(urlTimeout);
+      urlTimeout = setTimeout(() => this.checkUrlAvailability(e.target.value), 500);
+    });
+
+    // Фильтры по Enter
+    ['platformSearch', 'audienceMin', 'audienceMax'].forEach(id => {
+      document.getElementById(id).addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          this.loadPlatforms();
+        }
+      });
+    });
+  },
+
+  async loadPlatforms(page = 1) {
+    try {
+      this.currentPage = page;
+
+      const params = new URLSearchParams({
+        page: page,
+        limit: this.itemsPerPage,
+        search: document.getElementById('platformSearch').value,
+        type: document.getElementById('platformTypeFilter').value,
+        status: document.getElementById('platformStatusFilter').value,
+        pricing_model: document.getElementById('platformPricingFilter').value,
+        verification_status: document.getElementById('verificationFilter').value,
+        audience_min: document.getElementById('audienceMin').value,
+        audience_max: document.getElementById('audienceMax').value
+      });
+
+      [...params.entries()].forEach(([key, value]) => {
+        if (!value) params.delete(key);
+      });
+
+      const response = await apiFetch(`/api/platforms?${params}`);
+
+      if (response.success) {
+        this.displayPlatforms(response.data);
+        this.displayPagination(response.pagination);
+      }
+    } catch (error) {
+      console.error('Error loading platforms:', error);
+      showNotification('Error loading platforms', 'error');
+    }
+  },
+
+  displayPlatforms(platforms) {
+    const tbody = document.getElementById('platformsTableBody');
+
+    if (platforms.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="11" class="empty">No platforms found</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = platforms.map(platform => {
+      const statusClass = this.getStatusClass(platform.status);
+      const verificationClass = this.getVerificationClass(platform.verification_status);
+
+      return `
+        <tr>
+          <td>${platform.id}</td>
+          <td>${this.escapeHtml(platform.name)}</td>
+          <td>${this.formatType(platform.type)}</td>
+          <td>${platform.owner_username || 'Unknown'}</td>
+          <td><span class="status ${statusClass}">${platform.status}</span></td>
+          <td><span class="verification ${verificationClass}">${platform.verification_status}</span></td>
+          <td>${this.formatAudience(platform.audience_size)}</td>
+          <td>${this.formatPricing(platform.pricing_model, platform.pricing, platform.currency)}</td>
+          <td>${this.formatRating(platform.rating)}</td>
+          <td>${platform.quality_score || 0}/10</td>
+          <td>${this.generateActionButtons(platform)}</td>
+        </tr>
+      `;
+    }).join('');
+  },
+
+  generateActionButtons(platform) {
+    const buttons = [];
+
+    // View
+    buttons.push(`<button onclick="platformManager.viewPlatform(${platform.id})" class="btn btn-sm btn-info" title="View">
+      <i class="fas fa-eye"></i>
+    </button>`);
+
+    // Edit (только для черновиков и отклоненных)
+    if (['draft', 'rejected'].includes(platform.status)) {
+      buttons.push(`<button onclick="platformManager.editPlatform(${platform.id})" class="btn btn-sm btn-primary" title="Edit">
+        <i class="fas fa-edit"></i>
+      </button>`);
+    }
+
+    // Status management
+    if (platform.status === 'draft') {
+      buttons.push(`<button onclick="platformManager.submitForReview(${platform.id})" class="btn btn-sm btn-success" title="Submit for Review">
+        <i class="fas fa-paper-plane"></i>
+      </button>`);
+    } else if (platform.status === 'active') {
+      buttons.push(`<button onclick="platformManager.pausePlatform(${platform.id})" class="btn btn-sm btn-warning" title="Pause">
+        <i class="fas fa-pause"></i>
+      </button>`);
+    } else if (platform.status === 'paused') {
+      buttons.push(`<button onclick="platformManager.activatePlatform(${platform.id})" class="btn btn-sm btn-success" title="Activate">
+        <i class="fas fa-play"></i>
+      </button>`);
+    }
+
+    // Moderation (для модераторов/админов)
+    if (platform.moderation_status === 'pending' && (userData.is_admin || userData.is_moderator)) {
+      buttons.push(`<button onclick="platformManager.showModerationModal(${platform.id})" class="btn btn-sm btn-purple" title="Moderate">
+        <i class="fas fa-gavel"></i>
+      </button>`);
+    }
+
+    // Verification (для модераторов/админов)
+    if ((userData.is_admin || userData.is_moderator) && platform.verification_status !== 'verified') {
+      buttons.push(`<button onclick="platformManager.showVerificationModal(${platform.id})" class="btn btn-sm btn-green" title="Verify">
+        <i class="fas fa-check-circle"></i>
+      </button>`);
+    }
+
+    // Archive
+    if (platform.status !== 'archived') {
+      buttons.push(`<button onclick="platformManager.archivePlatform(${platform.id})" class="btn btn-sm btn-danger" title="Archive">
+        <i class="fas fa-archive"></i>
+      </button>`);
+    }
+
+    return buttons.join(' ');
+  },
+
+  async loadStats() {
+    try {
+      const response = await apiFetch('/api/admin/platforms/stats');
+
+      if (response.success) {
+        const stats = response.data;
+        document.getElementById('platformStats').style.display = 'flex';
+        document.getElementById('platformStatTotal').textContent = stats.total;
+        document.getElementById('platformStatActive').textContent = stats.by_status.active || 0;
+        document.getElementById('platformStatVerified').textContent = stats.verified_count;
+        document.getElementById('platformStatAudience').textContent = this.formatAudience(stats.total_audience);
+        document.getElementById('platformStatQuality').textContent = stats.average_quality_score;
+      }
+    } catch (error) {
+      console.error('Error loading platform stats:', error);
+    }
+  },
+
+  showCreateForm() {
+    this.isEditMode = false;
+    this.currentPlatformId = null;
+    document.getElementById('platformModalTitle').textContent = 'Add Platform';
+    document.getElementById('platformForm').reset();
+    document.getElementById('platformCurrency').value = 'USD';
+    document.getElementById('urlAvailability').textContent = '';
+    document.getElementById('platformModal').style.display = 'block';
+  },
+
+  async editPlatform(id) {
+    try {
+      const response = await apiFetch(`/api/platforms/${id}`);
+
+      if (response.success) {
+        const platform = response.data;
+        this.isEditMode = true;
+        this.currentPlatformId = id;
+
+        document.getElementById('platformModalTitle').textContent = 'Edit Platform';
+        document.getElementById('platformName').value = platform.name;
+        document.getElementById('platformType').value = platform.type;
+        document.getElementById('platformUrl').value = platform.url;
+        document.getElementById('platformDescription').value = platform.description || '';
+        document.getElementById('platformAudience').value = platform.audience_size || 0;
+        document.getElementById('platformPricingModel').value = platform.pricing_model;
+        document.getElementById('platformCurrency').value = platform.currency || 'USD';
+
+        this.updatePricingFields(platform.pricing_model, platform.pricing);
+        document.getElementById('platformModal').style.display = 'block';
+      }
+    } catch (error) {
+      console.error('Error loading platform:', error);
+      showNotification('Error loading platform', 'error');
+    }
+  },
+
+  async savePlatform() {
+    try {
+      if (!checkAuth()) return;
+
+      const formData = {
+        name: document.getElementById('platformName').value,
+        type: document.getElementById('platformType').value,
+        url: document.getElementById('platformUrl').value,
+        description: document.getElementById('platformDescription').value,
+        audience_size: parseInt(document.getElementById('platformAudience').value) || 0,
+        pricing_model: document.getElementById('platformPricingModel').value,
+        currency: document.getElementById('platformCurrency').value,
+        pricing: this.collectPricingData()
+      };
+
+      const url = this.isEditMode ?
+        `/api/platforms/${this.currentPlatformId}` :
+        '/api/platforms';
+      const method = this.isEditMode ? 'PUT' : 'POST';
+
+      const response = await apiFetch(url, {
+        method: method,
+        body: JSON.stringify(formData)
+      });
+
+      if (response.success) {
+        showNotification(
+          this.isEditMode ? 'Platform updated successfully' : 'Platform created successfully',
+          'success'
+        );
+        this.closeModal();
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error saving platform:', error);
+      showNotification(error.message || 'Error saving platform', 'error');
+    }
+  },
+
+  updatePricingFields(model, pricing = {}) {
+    const container = document.querySelector('.pricing-inputs');
+    let html = '';
+
+    switch (model) {
+      case 'cpm':
+        html = `<input type="number" id="priceCPM" placeholder="Price per 1000 impressions" 
+                       step="0.01" min="0" value="${pricing.cpm || ''}">`;
+        break;
+      case 'cpc':
+        html = `<input type="number" id="priceCPC" placeholder="Price per click" 
+                       step="0.01" min="0" value="${pricing.cpc || ''}">`;
+        break;
+      case 'cpa':
+        html = `<input type="number" id="priceCPA" placeholder="Price per action" 
+                       step="0.01" min="0" value="${pricing.cpa || ''}">`;
+        break;
+      case 'flat_rate':
+        html = `
+          <input type="number" id="priceFlatDaily" placeholder="Daily rate" 
+                 step="0.01" min="0" value="${pricing.flat_daily || ''}">
+          <input type="number" id="priceFlatWeekly" placeholder="Weekly rate" 
+                 step="0.01" min="0" value="${pricing.flat_weekly || ''}">
+          <input type="number" id="priceFlatMonthly" placeholder="Monthly rate" 
+                 step="0.01" min="0" value="${pricing.flat_monthly || ''}">
+        `;
+        break;
+      case 'hybrid':
+        html = `
+          <input type="number" id="priceCPM" placeholder="CPM rate" 
+                 step="0.01" min="0" value="${pricing.cpm || ''}">
+          <input type="number" id="priceCPC" placeholder="CPC rate" 
+                 step="0.01" min="0" value="${pricing.cpc || ''}">
+        `;
+        break;
+    }
+
+    container.innerHTML = html;
+  },
+
+  collectPricingData() {
+    const model = document.getElementById('platformPricingModel').value;
+    const pricing = {};
+
+    switch (model) {
+      case 'cpm':
+        pricing.cpm = parseFloat(document.getElementById('priceCPM')?.value) || 0;
+        break;
+      case 'cpc':
+        pricing.cpc = parseFloat(document.getElementById('priceCPC')?.value) || 0;
+        break;
+      case 'cpa':
+        pricing.cpa = parseFloat(document.getElementById('priceCPA')?.value) || 0;
+        break;
+      case 'flat_rate':
+        pricing.flat_daily = parseFloat(document.getElementById('priceFlatDaily')?.value) || 0;
+        pricing.flat_weekly = parseFloat(document.getElementById('priceFlatWeekly')?.value) || 0;
+        pricing.flat_monthly = parseFloat(document.getElementById('priceFlatMonthly')?.value) || 0;
+        break;
+      case 'hybrid':
+        pricing.cpm = parseFloat(document.getElementById('priceCPM')?.value) || 0;
+        pricing.cpc = parseFloat(document.getElementById('priceCPC')?.value) || 0;
+        break;
+    }
+
+    return pricing;
+  },
+
+  async checkUrlAvailability(url) {
+    if (!url) {
+      document.getElementById('urlAvailability').textContent = '';
+      return;
+    }
+
+    try {
+      const response = await apiFetch(`/api/platforms/check-url?url=${encodeURIComponent(url)}`);
+
+      const hint = document.getElementById('urlAvailability');
+      if (response.data.available) {
+        hint.textContent = '✓ URL is available';
+        hint.style.color = 'green';
+      } else {
+        hint.textContent = '✗ URL is already registered';
+        hint.style.color = 'red';
+      }
+    } catch (error) {
+      console.error('Error checking URL:', error);
+    }
+  },
+
+  async viewPlatform(id) {
+    try {
+      const response = await apiFetch(`/api/platforms/${id}`);
+
+      if (response.success) {
+        const platform = response.data;
+        const modalContent = `
+          <div class="platform-details">
+            <h3>${this.escapeHtml(platform.name)}</h3>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <strong>Type:</strong> ${this.formatType(platform.type)}
+              </div>
+              <div class="detail-item">
+                <strong>Status:</strong> 
+                <span class="status ${this.getStatusClass(platform.status)}">${platform.status}</span>
+              </div>
+              <div class="detail-item">
+                <strong>Owner:</strong> ${platform.owner_username}
+              </div>
+              <div class="detail-item">
+                <strong>URL:</strong> <a href="${platform.url}" target="_blank">${platform.url}</a>
+              </div>
+              <div class="detail-item">
+                <strong>Audience:</strong> ${this.formatAudience(platform.audience_size)}
+              </div>
+              <div class="detail-item">
+                <strong>Pricing:</strong> ${this.formatPricing(platform.pricing_model, platform.pricing, platform.currency)}
+              </div>
+              <div class="detail-item">
+                <strong>Verification:</strong> 
+                <span class="verification ${this.getVerificationClass(platform.verification_status)}">${platform.verification_status}</span>
+              </div>
+              <div class="detail-item">
+                <strong>Rating:</strong> ${this.formatRating(platform.rating)}
+              </div>
+              <div class="detail-item">
+                <strong>Quality Score:</strong> ${platform.quality_score}/10
+              </div>
+            </div>
+            
+            ${platform.description ? `
+              <div class="detail-section">
+                <h4>Description</h4>
+                <p>${this.escapeHtml(platform.description)}</p>
+              </div>
+            ` : ''}
+            
+            ${platform.moderation_notes ? `
+              <div class="detail-section moderation-notes">
+                <h4>Moderation Notes</h4>
+                <p>${this.escapeHtml(platform.moderation_notes)}</p>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        this.showInfoModal('Platform Details', modalContent);
+      }
+    } catch (error) {
+      console.error('Error viewing platform:', error);
+      showNotification('Error loading platform details', 'error');
+    }
+  },
+
+  async submitForReview(id) {
+    if (!confirm('Submit this platform for review?')) return;
+
+    try {
+      const response = await apiFetch(`/api/platforms/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'pending_review' })
+      });
+
+      if (response.success) {
+        showNotification('Platform submitted for review', 'success');
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error submitting platform:', error);
+      showNotification('Error submitting platform', 'error');
+    }
+  },
+
+  async pausePlatform(id) {
+    if (!confirm('Pause this platform?')) return;
+
+    try {
+      const response = await apiFetch(`/api/platforms/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'paused' })
+      });
+
+      if (response.success) {
+        showNotification('Platform paused', 'success');
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error pausing platform:', error);
+      showNotification('Error pausing platform', 'error');
+    }
+  },
+
+  async activatePlatform(id) {
+    if (!confirm('Activate this platform?')) return;
+
+    try {
+      const response = await apiFetch(`/api/platforms/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'active' })
+      });
+
+      if (response.success) {
+        showNotification('Platform activated', 'success');
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error activating platform:', error);
+      showNotification('Error activating platform', 'error');
+    }
+  },
+
+  async archivePlatform(id) {
+    if (!confirm('Archive this platform? It will no longer be visible in searches.')) return;
+
+    try {
+      const response = await apiFetch(`/api/platforms/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (response.success) {
+        showNotification('Platform archived', 'success');
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error archiving platform:', error);
+      showNotification('Error archiving platform', 'error');
+    }
+  },
+
+  showModerationModal(id) {
+    this.currentPlatformId = id;
+    document.getElementById('platformModerationForm').reset();
+    document.getElementById('platformModerationModal').style.display = 'block';
+  },
+
+  async moderatePlatform() {
+    try {
+      const decision = document.querySelector('input[name="platformDecision"]:checked').value;
+      const notes = document.getElementById('platformModerationNotes').value;
+
+      if (['rejected', 'requires_changes'].includes(decision) && !notes) {
+        showNotification('Please provide notes for this decision', 'error');
+        return;
+      }
+
+      const response = await apiFetch(`/api/platforms/${this.currentPlatformId}/moderate`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, notes })
+      });
+
+      if (response.success) {
+        showNotification(`Platform ${decision}`, 'success');
+        this.closeModerationModal();
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error moderating platform:', error);
+      showNotification('Error moderating platform', 'error');
+    }
+  },
+
+  async showVerificationModal(id) {
+    const verificationOptions = ['pending', 'verified', 'failed', 'expired'];
+    const modalContent = `
+      <div class="verification-form">
+        <h4>Update Verification Status</h4>
+        <select id="verificationSelect" class="form-control">
+          ${verificationOptions.map(status =>
+      `<option value="${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</option>`
+    ).join('')}
+        </select>
+        <div class="form-actions" style="margin-top: 20px;">
+          <button onclick="platformManager.updateVerification(${id})" class="btn btn-primary">Update</button>
+          <button onclick="document.getElementById('infoModal').remove()" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    `;
+
+    this.showInfoModal('Verify Platform', modalContent);
+  },
+
+  async updateVerification(id) {
+    try {
+      const status = document.getElementById('verificationSelect').value;
+
+      const response = await apiFetch(`/api/platforms/${id}/verification`, {
+        method: 'PATCH',
+        body: JSON.stringify({ verification_status: status })
+      });
+
+      if (response.success) {
+        showNotification('Verification status updated', 'success');
+        document.getElementById('infoModal').remove();
+        this.loadPlatforms(this.currentPage);
+      }
+    } catch (error) {
+      console.error('Error updating verification:', error);
+      showNotification('Error updating verification', 'error');
+    }
+  },
+
+  async loadPendingModeration() {
+    try {
+      const response = await apiFetch('/api/admin/platforms/pending');
+
+      if (response.success) {
+        this.displayPlatforms(response.data);
+        this.displayPagination(response.pagination);
+      }
+    } catch (error) {
+      console.error('Error loading pending platforms:', error);
+      showNotification('Error loading pending platforms', 'error');
+    }
+  },
+
+  displayPagination(pagination) {
+    const container = document.getElementById('platformPagination');
+    const { page, pages, total } = pagination;
+
+    if (pages <= 1) {
+      container.innerHTML = '';
+      return;
+    }
+
+    let html = '<div class="pagination-info">Total: ' + total + ' platforms</div>';
+    html += '<div class="pagination-buttons">';
+
+    if (page > 1) {
+      html += `<button onclick="platformManager.loadPlatforms(${page - 1})" class="btn btn-sm">Previous</button>`;
+    }
+
+    for (let i = 1; i <= pages; i++) {
+      if (i === 1 || i === pages || (i >= page - 2 && i <= page + 2)) {
+        html += `<button onclick="platformManager.loadPlatforms(${i})" 
+                         class="btn btn-sm ${i === page ? 'btn-primary' : ''}">${i}</button>`;
+      } else if (i === page - 3 || i === page + 3) {
+        html += '<span>...</span>';
+      }
+    }
+
+    if (page < pages) {
+      html += `<button onclick="platformManager.loadPlatforms(${page + 1})" class="btn btn-sm">Next</button>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  },
+
+  closeModal() {
+    document.getElementById('platformModal').style.display = 'none';
+    document.getElementById('platformForm').reset();
+  },
+
+  closeModerationModal() {
+    document.getElementById('platformModerationModal').style.display = 'none';
+    document.getElementById('platformModerationForm').reset();
+  },
+
+  showInfoModal(title, content) {
+    const existingModal = document.getElementById('infoModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'infoModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+      <div class="modal-content large-modal">
+        <span class="close">&times;</span>
+        <h3>${title}</h3>
+        ${content}
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const closeBtn = modal.querySelector('.close');
+    closeBtn.onclick = () => modal.remove();
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    };
+  },
+
+  // Вспомогательные методы форматирования
+  getStatusClass(status) {
+    const statusClasses = {
+      'draft': 'status-draft',
+      'pending_review': 'status-pending',
+      'active': 'status-active',
+      'paused': 'status-paused',
+      'suspended': 'status-suspended',
+      'rejected': 'status-rejected',
+      'archived': 'status-archived'
+    };
+    return statusClasses[status] || '';
+  },
+
+  getVerificationClass(status) {
+    const verificationClasses = {
+      'unverified': 'verification-unverified',
+      'pending': 'verification-pending',
+      'verified': 'verification-verified',
+      'failed': 'verification-failed',
+      'expired': 'verification-expired'
+    };
+    return verificationClasses[status] || '';
+  },
+
+  formatType(type) {
+    const typeNames = {
+      'website': 'Website',
+      'telegram_channel': 'Telegram Channel',
+      'telegram_group': 'Telegram Group',
+      'instagram': 'Instagram',
+      'youtube': 'YouTube',
+      'tiktok': 'TikTok',
+      'facebook': 'Facebook',
+      'vk': 'VK',
+      'email_newsletter': 'Email Newsletter',
+      'mobile_app': 'Mobile App',
+      'podcast': 'Podcast',
+      'other': 'Other'
+    };
+    return typeNames[type] || type;
+  },
+
+  formatAudience(size) {
+    if (!size) return '0';
+    if (size >= 1000000) return (size / 1000000).toFixed(1) + 'M';
+    if (size >= 1000) return (size / 1000).toFixed(1) + 'K';
+    return size.toString();
+  },
+
+  formatPricing(model, pricing, currency) {
+    if (!pricing) return '-';
+
+    const curr = currency || 'USD';
+    const symbol = { 'USD': '$', 'EUR': '€', 'GBP': '£', 'RUB': '₽' }[curr] || curr;
+
+    switch (model) {
+      case 'cpm':
+        return `${symbol}${pricing.cpm || 0} CPM`;
+      case 'cpc':
+        return `${symbol}${pricing.cpc || 0} CPC`;
+      case 'cpa':
+        return `${symbol}${pricing.cpa || 0} CPA`;
+      case 'flat_rate':
+        if (pricing.flat_daily) return `${symbol}${pricing.flat_daily}/day`;
+        if (pricing.flat_weekly) return `${symbol}${pricing.flat_weekly}/week`;
+        if (pricing.flat_monthly) return `${symbol}${pricing.flat_monthly}/month`;
+        return '-';
+      case 'hybrid':
+        return 'Hybrid';
+      default:
+        return '-';
+    }
+  },
+
+  formatRating(rating) {
+    if (!rating) return '☆☆☆☆☆';
+    const stars = Math.round(rating);
+    return '★'.repeat(stars) + '☆'.repeat(5 - stars);
+  },
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+};
+
+// Добавляем platformManager в window
+window.platformManager = platformManager;
+
 function showNotification(message, type = 'info') {
   alert(`${type.toUpperCase()}: ${message}`);
 }
+
 // Функция переключения секций
 function showSection(sectionName) {
   // Убираем active со всех кнопок
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.remove('active');
   });
-  
+
   // Добавляем active на нужную кнопку
   const activeBtn = document.querySelector(`[onclick*="${sectionName}"]`);
   if (activeBtn) activeBtn.classList.add('active');
-  
+
   // Скрываем все секции
   document.querySelectorAll('.content-section').forEach(section => {
     section.style.display = 'none';
@@ -990,10 +1724,12 @@ function showSection(sectionName) {
     if (sectionName === 'campaign-management') {
       campaignManager.loadCampaigns();
       campaignManager.loadStats();
+    } else if (sectionName === 'platform-management') {
+      platformManager.loadPlatforms();
+      platformManager.loadStats();
     }
   }
 }
-
 // Инициализация при загрузке страницы
 document.addEventListener("DOMContentLoaded", () => {
   if (!getToken()) {
@@ -1003,6 +1739,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Загрузка данных
   loadUsers();
   campaignManager.init();
+  platformManager.init();
 
   // Привязка событий форм с проверками на наличие
 
