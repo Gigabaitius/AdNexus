@@ -47,7 +47,7 @@ const platformController = {
       }
 
       // Создаем площадку
-      const platform = await Platform.create(userId, platformData);
+      const platform = await Platform.createPlatform({user_id: userId, ...platformData});
 
       logger.info(`Platform created: ${platform.id} by user ${userId}`);
 
@@ -191,7 +191,7 @@ const platformController = {
       }
 
       // Обновляем площадку
-      const updatedPlatform = await Platform.update(platformId, userId, updates);
+      const updatedPlatform = await Platform.updatePlatform(platformId, updates);
 
       logger.info(`Platform updated: ${platformId} by user ${userId}`);
       res.json(successResponse(updatedPlatform, "Platform updated successfully"));
@@ -242,7 +242,7 @@ const platformController = {
         }
       }
 
-      const updatedPlatform = await Platform.updateStatus(platformId, status, userId);
+      const updatedPlatform = await Platform.updatePlatformStatus(platformId, status, userId);
 
       logger.info(`Platform status updated: ${platformId} to ${status} by user ${userId}`);
       res.json(successResponse(updatedPlatform, `Platform status updated to ${status}`));
@@ -355,7 +355,7 @@ const platformController = {
         return res.status(400).json(errorResponse("Invalid platform ID", 400));
       }
 
-      const similarPlatforms = await Platform.findSimilar(platformId, limit);
+      const similarPlatforms = await Platform.getSimilarPlatforms(platformId, limit);
 
       res.json(successResponse(similarPlatforms, "Similar platforms retrieved"));
     } catch (error) {

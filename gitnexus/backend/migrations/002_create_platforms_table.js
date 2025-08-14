@@ -1,4 +1,4 @@
-// migrations/002_create_platforms_table.js
+// *project*\backend\migrations\002_create_platforms_table.js
 
 /**
  * Создает таблицу для рекламных кампаний
@@ -68,12 +68,12 @@ async function down(db) {
   await db.run('DROP TRIGGER IF EXISTS update_adPlatforms_updated_at');
   
   // Удаляем индексы
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_user_id ON adPlatforms(user_id)');
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_status ON adPlatforms(status)');
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_type ON adPlatforms(type)');
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_verification_status ON adPlatforms(verification_status)');
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_rating ON adPlatforms(rating)');
-  await db.run('DROP INDEX IF NOT EXISTS idx_adPlatforms_user_status ON adPlatforms(user_id, status)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_user_id ON adPlatforms(user_id)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_status ON adPlatforms(status)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_type ON adPlatforms(type)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_verification_status ON adPlatforms(verification_status)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_rating ON adPlatforms(rating)');
+  await db.run('DROP INDEX IF EXISTS idx_adPlatforms_user_status ON adPlatforms(user_id, status)');
   
   // Удаляем таблицу
   await db.run('DROP TABLE IF EXISTS adPlatforms');
