@@ -1,0 +1,30 @@
+/* admin.css */
+
+.admin-main {
+  background-color: var(--main-bg-color);
+  padding: 2rem;
+  min-height: 80vh;
+}
+
+.create-user-container, .users-table-container {
+  background-color: var(--text-bright-color);
+  border-radius: 8px;
+  box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+#users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+#users-table th, #users-table td {
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+}
+
+#users-table th {
+  background-color: var(--main-accent-color);
+  color: white;
+}
